@@ -1,0 +1,143 @@
+import { setServerStatus } from './serverStatus'
+
+/**
+ * API client (spec §13, §15, §16).
+ *
+ * - Every call goes to /api/v1 on the same origin; Vercel (or the Vite dev
+ *   proxy) forwards it to Django, so the refresh cookie is first-party.
+ * - The access token lives in memory only. The refresh token is an HttpOnly
+ *   cookie the browser sends to /api/v1/auth/refresh.
+ * - If the API takes more than 2 s, the app shows a waking state and retries
+ *   with backoff for up to 60 s, then reports offline. A network failure
+ *   during refresh never logs the user out; only a 401 from refresh does.
+ */
+
+const BASE = '/api/v1'
+const WAKING_AFTER_MS = 2_000
+const GIVE_UP_AFTER_MS = 60_000
+
+let accessToken: string | null = null
+let refreshing: Promise<boolean> | null = null
+const authListeners = new Set<(signedIn: boolean) => void>()
+
+export function setAccessToken(token: string | null) {
+  accessToken = token
+  authListeners.forEach((l) => l(token !== null))
+}
+
+export function onAuthChange(listener: (signedIn: boolean) => void) {
+  authListeners.add(listener)
+  return () => authListeners.delete(listener)
+}
+
+export class ApiError extends Error {
+  readonly status: number
+  readonly code: string
+  readonly fields: Record<string, string[]>
+
+  constructor(status: number, body: { code?: string; message?: string; fields?: Record<string, string[]> }) {
+    super(body.message ?? `Request failed with status ${status}`)
+    this.status = status
+    this.code = body.code ?? 'error'
+    this.fields = body.fields ?? {}
+  }
+}
+
+export class OfflineError extends Error {
+  constructor() {
+    super("Couldn't reach the server. Your work is saved on this device and will sync when you're back online.")
+  }
+}
+
+function csrfToken(): string | undefined {
+  return document.cookie
+    .split('; ')
+    .find((c) => c.startsWith('csrftoken='))
+    ?.split('=')[1]
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** fetch with the waking/backoff behaviour. Throws OfflineError after 60 s. */
+async function resilientFetch(input: string, init: RequestInit): Promise<Response> {
+  const started = Date.now()
+  const wakingTimer = setTimeout(() => setServerStatus('waking'), WAKING_AFTER_MS)
+  let delay = 1_000
+  try {
+    for (;;) {
+      try {
+        const res = await fetch(input, init)
+        // 502/503/504 from the proxy usually means the container is still starting.
+        if (res.status >= 502 && res.status <= 504 && Date.now() - started < GIVE_UP_AFTER_MS) {
+          setServerStatus('waking')
+        } else {
+          setServerStatus('online')
+          return res
+        }
+      } catch {
+        if (Date.now() - started >= GIVE_UP_AFTER_MS) break
+        setServerStatus('waking')
+      }
+      await sleep(delay)
+      delay = Math.min(delay * 2, 8_000)
+      if (Date.now() - started >= GIVE_UP_AFTER_MS) break
+    }
+  } finally {
+    clearTimeout(wakingTimer)
+  }
+  setServerStatus('offline')
+  throw new OfflineError()
+}
+
+async function refreshAccessToken(): Promise<boolean> {
+  refreshing ??= (async () => {
+    try {
+      const res = await resilientFetch(`${BASE}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'X-CSRFToken': csrfToken() ?? '' },
+      })
+      if (!res.ok) {
+        setAccessToken(null)
+        return false
+      }
+      const body = (await res.json()) as { access: string }
+      setAccessToken(body.access)
+      return true
+    } catch (err) {
+      // Offline or still waking: keep the session, try again later.
+      if (err instanceof OfflineError) return false
+      throw err
+    } finally {
+      refreshing = null
+    }
+  })()
+  return refreshing
+}
+
+type Options = Omit<RequestInit, 'body'> & { body?: unknown; auth?: boolean }
+
+export async function api<T>(path: string, { body, auth = true, headers, ...init }: Options = {}): Promise<T> {
+  const send = () =>
+    resilientFetch(`${BASE}${path}`, {
+      ...init,
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(auth && accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        'X-CSRFToken': csrfToken() ?? '',
+        ...headers,
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    })
+
+  let res = await send()
+  if (res.status === 401 && auth && (await refreshAccessToken())) {
+    res = await send()
+  }
+  if (res.status === 204) return undefined as T
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new ApiError(res.status, data)
+  return data as T
+}

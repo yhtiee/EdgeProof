@@ -1,0 +1,18 @@
+# Scheduled sweep (spec §13): HMAC-signed call to the API every 30 minutes.
+name: sweep
+on:
+  schedule: [{ cron: "*/30 * * * *" }]
+  workflow_dispatch:
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call sweep
+        env:
+          SECRET: ${{ secrets.SWEEP_HMAC_SECRET }}
+          URL: ${{ secrets.SWEEP_URL }}
+        run: |
+          TS=$(date +%s)
+          SIG=$(printf '%s.' "$TS" | openssl dgst -sha256 -hmac "$SECRET" -hex | awk '{print $2}')
+          curl -fsS -X POST "$URL" -H "X-Sweep-Timestamp: $TS" -H "X-Sweep-Signature: $SIG" --max-time 70

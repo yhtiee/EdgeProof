@@ -1,0 +1,121 @@
+/*
+ * EdgeProof design tokens. Source of truth: DESIGN.md §3–§6.
+ * Components never use raw hex values; they use these variables
+ * (through the Tailwind theme in index.css).
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Colour, light (DESIGN.md §3) */
+  --bg: #eef1f2;
+  --surface: #f8fafa;
+  --raised: #ffffff;
+  --text: #0e1a24;
+  --text-muted: #46535e;
+  --text-subtle: #5a6773;
+  --border: #c9d1d6;
+  --border-control: #7a8893;
+  --accent: #f2a93b;
+  --on-accent: #0e1a24;
+  --accent-text: #8a4f06;
+  --focus: #2c62a0;
+  --gain: #16704f;
+  --loss: #ae3424;
+  --info: #2c62a0;
+  --warning: #8a4f06;
+  --danger: #ae3424;
+  --neutral-data: #4c6a82;
+
+  /* Type (DESIGN.md §4) */
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* Shape (DESIGN.md §5) */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 999px;
+  --shadow-pop: 0 8px 24px rgb(14 26 36 / 0.12);
+  --shadow-sheet: 0 -8px 32px rgb(14 26 36 / 0.16);
+
+  /* Motion (DESIGN.md §6) */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasis: cubic-bezier(0.3, 0, 0, 1);
+}
+
+/* Dark: system preference, unless the user picked light */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #0e1a24;
+    --surface: #152534;
+    --raised: #1c3043;
+    --text: #eef1f2;
+    --text-muted: #b7c4ce;
+    --text-subtle: #8d9da9;
+    --border: #2c4253;
+    --border-control: #6a8499;
+    --accent-text: #f2a93b;
+    --focus: #f2a93b;
+    --gain: #4cc38a;
+    --loss: #f08068;
+    --info: #79aeea;
+    --warning: #f2a93b;
+    --danger: #f08068;
+    --neutral-data: #8fa9be;
+  }
+}
+
+/* Dark: manual toggle in Settings */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0e1a24;
+  --surface: #152534;
+  --raised: #1c3043;
+  --text: #eef1f2;
+  --text-muted: #b7c4ce;
+  --text-subtle: #8d9da9;
+  --border: #2c4253;
+  --border-control: #6a8499;
+  --accent-text: #f2a93b;
+  --focus: #f2a93b;
+  --gain: #4cc38a;
+  --loss: #f08068;
+  --info: #79aeea;
+  --warning: #f2a93b;
+  --danger: #f08068;
+  --neutral-data: #8fa9be;
+}
+
+/* Colour-blind mode (DESIGN.md §3): gain and loss become blue and orange */
+:root[data-cb='true'] {
+  --gain: #2c62a0;
+  --loss: #8a4f06;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-cb='true']:not([data-theme='light']) {
+    --gain: #79aeea;
+    --loss: #f2a93b;
+  }
+}
+:root[data-cb='true'][data-theme='dark'] {
+  --gain: #79aeea;
+  --loss: #f2a93b;
+}
+
+/* Data-saver mode: no web fonts (DESIGN.md §4) */
+:root[data-saver='true'] {
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-base: 120ms;
+    --motion-slow: 120ms;
+  }
+}

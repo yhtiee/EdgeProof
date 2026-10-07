@@ -1,0 +1,19 @@
+# Local environment (spec §13): Postgres plus the Django API.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: edgeproof
+      POSTGRES_USER: edgeproof
+      POSTGRES_PASSWORD: edgeproof
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+  api:
+    build: ./backend
+    env_file: ./backend/.env
+    environment:
+      DATABASE_URL: postgres://edgeproof:edgeproof@db:5432/edgeproof
+    ports: ["8000:8000"]
+    depends_on: [db]
+volumes:
+  pgdata:
