@@ -49,11 +49,16 @@ export class OfflineError extends Error {
   }
 }
 
+/** Double-submit CSRF token set by the auth endpoints (spec §16). */
 function csrfToken(): string | undefined {
   return document.cookie
     .split('; ')
-    .find((c) => c.startsWith('csrftoken='))
+    .find((c) => c.startsWith('ep_csrf='))
     ?.split('=')[1]
+}
+
+export function hasAccessToken() {
+  return accessToken !== null
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -89,7 +94,8 @@ async function resilientFetch(input: string, init: RequestInit): Promise<Respons
   throw new OfflineError()
 }
 
-async function refreshAccessToken(): Promise<boolean> {
+/** Restores or renews the session from the refresh cookie. False means signed out. */
+export async function refreshAccessToken(): Promise<boolean> {
   refreshing ??= (async () => {
     try {
       const res = await resilientFetch(`${BASE}/auth/refresh`, {
@@ -97,17 +103,16 @@ async function refreshAccessToken(): Promise<boolean> {
         credentials: 'include',
         headers: { 'X-CSRFToken': csrfToken() ?? '' },
       })
-      if (!res.ok) {
+      // Only a 401 means the session is over. A throttled or failing refresh
+      // keeps the session; the caller shows an error and can retry (spec §16).
+      if (res.status === 401) {
         setAccessToken(null)
         return false
       }
+      if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})))
       const body = (await res.json()) as { access: string }
       setAccessToken(body.access)
       return true
-    } catch (err) {
-      // Offline or still waking: keep the session, try again later.
-      if (err instanceof OfflineError) return false
-      throw err
     } finally {
       refreshing = null
     }

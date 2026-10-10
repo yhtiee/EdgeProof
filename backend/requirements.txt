@@ -15,3 +15,4 @@ boto3>=1.40
 gunicorn>=23
 whitenoise>=6.9
 sentry-sdk>=2.30
+tzdata>=2025.2  # IANA timezones for zoneinfo on Windows and slim images

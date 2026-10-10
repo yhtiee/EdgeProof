@@ -7,6 +7,9 @@ SameSite=Lax cookie scoped to /api/v1/auth/. Presenting an already-rotated
 refresh token is treated as theft: every session of that user is revoked.
 """
 
+import hmac
+import secrets
+
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.db import IntegrityError, transaction
@@ -25,6 +28,8 @@ from .models import ActivityEvent, User
 from .serializers import LoginSerializer, RegisterSerializer
 
 COOKIE = settings.REFRESH_COOKIE
+CSRF_COOKIE = "ep_csrf"
+CSRF_HEADER = "X-CSRFToken"
 
 
 def _issue(user: User, response: Response | None = None, status_code=status.HTTP_200_OK) -> Response:
@@ -36,15 +41,34 @@ def _issue(user: User, response: Response | None = None, status_code=status.HTTP
 
 
 def _set_cookie(response: Response, token: str):
+    max_age = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
     response.set_cookie(
         COOKIE["key"],
         token,
-        max_age=int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()),
+        max_age=max_age,
         path=COOKIE["path"],
         httponly=COOKIE["httponly"],
         secure=COOKIE["secure"],
         samesite=COOKIE["samesite"],
     )
+    # Double-submit CSRF token (spec §16): readable by the page, echoed in a header.
+    response.set_cookie(
+        CSRF_COOKIE, secrets.token_urlsafe(32), max_age=max_age, path="/", secure=COOKIE["secure"], samesite="Lax"
+    )
+
+
+def _clear_cookies(response: Response):
+    response.delete_cookie(COOKIE["key"], path=COOKIE["path"])
+    response.delete_cookie(CSRF_COOKIE, path="/")
+
+
+def _csrf_ok(request) -> bool:
+    cookie = request.COOKIES.get(CSRF_COOKIE, "")
+    header = request.headers.get(CSRF_HEADER, "")
+    return bool(cookie) and hmac.compare_digest(cookie, header)
+
+
+CSRF_FAILED = {"code": "csrf_failed", "message": "Refresh the page and try again.", "fields": {}}
 
 
 def _unverified_payload(raw: str) -> dict:
@@ -99,15 +123,21 @@ class LoginView(AuthThrottleMixin, APIView):
         user = authenticate(
             request, email=serializer.validated_data["email"].lower(), password=serializer.validated_data["password"]
         )
-        if user is None or user.deletion_requested_at:
+        if user is None:
             return Response(
                 {"code": "invalid_credentials", "message": "That email and password don't match an account.", "fields": {}},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+        if user.deletion_requested_at:
+            # AS-3: signing in during the 7-day window cancels the deletion.
+            user.deletion_requested_at = None
+            user.save(update_fields=["deletion_requested_at", "updated_at"])
         return _issue(user)
 
 
-class RefreshView(AuthThrottleMixin, APIView):
+class RefreshView(APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "refresh"
     permission_classes = [permissions.AllowAny]
     authentication_classes: list = []
 
@@ -115,6 +145,8 @@ class RefreshView(AuthThrottleMixin, APIView):
         raw = request.COOKIES.get(COOKIE["key"])
         if not raw:
             return Response({"code": "no_session", "message": "Sign in again.", "fields": {}}, status=401)
+        if not _csrf_ok(request):
+            return Response(CSRF_FAILED, status=403)
         try:
             refresh = RefreshToken(raw)  # verifies signature, expiry and blacklist
         except TokenError:
@@ -125,7 +157,7 @@ class RefreshView(AuthThrottleMixin, APIView):
                 revoke_all_sessions(user_id)
                 AuditLog.record(actor_id=user_id, action="auth.refresh_reuse_detected", target=f"user:{user_id}")
             response = Response({"code": "session_expired", "message": "Sign in again.", "fields": {}}, status=401)
-            response.delete_cookie(COOKIE["key"], path=COOKIE["path"])
+            _clear_cookies(response)
             return response
 
         user = User.objects.filter(id=refresh.payload.get("user_id"), is_active=True).first()
@@ -142,13 +174,15 @@ class LogoutView(APIView):
 
     def post(self, request):
         raw = request.COOKIES.get(COOKIE["key"])
+        if raw and not _csrf_ok(request):
+            return Response(CSRF_FAILED, status=403)
         if raw:
             try:
                 RefreshToken(raw).blacklist()
             except TokenError:
                 pass
         response = Response(status=status.HTTP_204_NO_CONTENT)
-        response.delete_cookie(COOKIE["key"], path=COOKIE["path"])
+        _clear_cookies(response)
         return response
 
 
@@ -159,7 +193,7 @@ class LogoutAllView(APIView):
         revoke_all_sessions(request.user.id)
         AuditLog.record(actor_id=request.user.id, action="auth.logout_all", target=f"user:{request.user.id}")
         response = Response(status=status.HTTP_204_NO_CONTENT)
-        response.delete_cookie(COOKIE["key"], path=COOKIE["path"])
+        _clear_cookies(response)
         return response
 
 

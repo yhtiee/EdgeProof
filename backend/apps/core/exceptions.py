@@ -37,6 +37,11 @@ def exception_handler(exc, context):
     elif isinstance(data, list):
         message = str(data[0]) if data else "Request failed."
 
+    if isinstance(exc, exceptions.Throttled):
+        wait = int(exc.wait or 0)
+        when = f"in {wait} seconds" if wait < 120 else f"in about {round(wait / 60)} minutes"
+        message = f"Too many attempts. Try again {when}."
+
     code = getattr(exc, "default_code", "error")
     if isinstance(exc, exceptions.APIException):
         codes = exc.get_codes()

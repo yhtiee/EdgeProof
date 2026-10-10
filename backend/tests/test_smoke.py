@@ -7,7 +7,11 @@ from rest_framework.test import APIClient
 
 pytestmark = pytest.mark.django_db
 
-SIGNUP = {"name": "Ada", "email": "ada@example.com", "password": "a-long-passphrase-42", "over_18": True}
+
+def refresh(client):
+    return client.post("/api/v1/auth/refresh", HTTP_X_CSRFTOKEN=client.cookies["ep_csrf"].value)
+
+SIGNUP = {"first_name": "Ada", "last_name": "Obi", "email": "ada@example.com", "password": "a-long-passphrase-42", "over_18": True}
 
 
 def test_register_refresh_and_me():
@@ -16,7 +20,7 @@ def test_register_refresh_and_me():
     assert res.status_code == 201
     assert "ep_refresh" in res.cookies
 
-    res = client.post("/api/v1/auth/refresh")
+    res = refresh(client)
     assert res.status_code == 200
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {res.json()['access']}")
     assert client.get("/api/v1/me").json()["email"] == "ada@example.com"
@@ -26,13 +30,21 @@ def test_reused_refresh_token_revokes_sessions():
     client = APIClient()
     client.post("/api/v1/auth/register", SIGNUP, format="json")
     old = client.cookies["ep_refresh"].value
-    assert client.post("/api/v1/auth/refresh").status_code == 200
+    csrf = client.cookies["ep_csrf"].value
+    assert refresh(client).status_code == 200
 
     thief = APIClient()
     thief.cookies["ep_refresh"] = old
-    assert thief.post("/api/v1/auth/refresh").status_code == 401
+    thief.cookies["ep_csrf"] = csrf
+    assert thief.post("/api/v1/auth/refresh", HTTP_X_CSRFTOKEN=csrf).status_code == 401
     # The legitimate, rotated session is revoked too.
-    assert client.post("/api/v1/auth/refresh").status_code == 401
+    assert refresh(client).status_code == 401
+
+
+def test_refresh_requires_csrf_header():
+    client = APIClient()
+    client.post("/api/v1/auth/register", SIGNUP, format="json")
+    assert client.post("/api/v1/auth/refresh").status_code == 403
 
 
 def test_signup_requires_age_statement():

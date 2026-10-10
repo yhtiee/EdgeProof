@@ -23,6 +23,9 @@ api_v1 = [
     # Profile and gates
     path("me", accounts.MeView.as_view()),
     path("me/profile", accounts.ProfileView.as_view()),
+    path("me/onboarding/time", accounts.OnboardingTimeView.as_view()),
+    path("me/onboarding/experience", accounts.OnboardingExperienceView.as_view()),
+    path("me/plan", accounts.PlanView.as_view()),
     path("me/plan/accept", accounts.AcceptPlanView.as_view()),
     path("me/security/logout-all", auth_views.LogoutAllView.as_view()),
     path("me/gates", gates.MyGatesView.as_view()),

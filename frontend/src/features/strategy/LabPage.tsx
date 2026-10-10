@@ -4,7 +4,7 @@ import { Button, EmptyState } from '../../components/ui'
 /** Strategy Lab (§6). Drafting opens after Level 2; testing unlocks at Gate 3. */
 export default function LabPage() {
   return (
-    <div className="mx-auto max-w-[1200px]">
+    <div>
       <PageHeader
         title="Strategy Lab"
         description="Write your own rulebook, one part at a time. Clarity checks run as you type."

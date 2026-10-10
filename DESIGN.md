@@ -145,8 +145,13 @@ A 4 px base. Allowed steps: `4, 8, 12, 16, 24, 32, 48, 64, 96`. Use Tailwind's d
 ### Layout
 - **Mobile first.** Design at 360 px, then 768 px and 1280 px. Gutters: 16 px mobile, 24 px tablet, 32 px desktop.
 - **App shell:** bottom tab bar on mobile (Learn, Journal, Lab, Progress, More); left sidebar on desktop (≥1024 px). Five destinations maximum.
-- **Content width:** lessons and forms max 680 px, centred; dashboards and tables up to 1200 px; charts can go full width.
-- **Alignment:** text is left-aligned everywhere except single-line empty-state headings and the exam result moment.
+- **App header:** a sticky bar across the top of the content area, 56 px on mobile and 64 px on desktop, on `--surface` with a bottom `--border`. Left: the logo on mobile; on desktop, the current section as a quiet label (Body small, 600, `--text-muted`), because the sidebar already carries the logo and the page carries its own H1. Right: a secondary "Log trade" button (tablet and up), notifications and the account menu as 44 px icon buttons with `aria-label`s. The header never uses amber, never shows a red badge and never repeats the page title at H1 size.
+- **Content width: fill the space, don't centre a column.** App screens use the full width of the content area, left-aligned, inside the standard gutters. Never wrap a screen in a centred `max-width` container with empty space on both sides: on desktop that pushes everything into one long column and causes needless scrolling. Use the width instead: at ≥1024 px, put related parts side by side in a two-column grid (for example a lesson's explanation beside its simulator, a progress path beside the current gate's criteria, or a form beside its live preview).
+- **Measure still applies to text, not to containers.** Paragraphs keep `max-width: 68ch` (lessons) or about 60ch (descriptions) on the text element itself, so lines stay readable while the layout uses the full width.
+- **Auth and onboarding: split screen.** These screens follow the same rule. At ≥1024 px the screen is two equal columns that fill the width. Left, on `--bg`: the logo, then the H1, description and form, left-aligned (sign-in and sign-up forms max 420 px, onboarding steps max 560 px). Right, on `--surface` with a left `--border`: context that would otherwise need scrolling to find. Sign-up shows the steps that follow; sign-in shows a range-bar example; onboarding shows the step list (current step in amber, done steps ticked) and the answers saved so far. Below 1024 px the right panel is hidden and onboarding shows "Step N of 4" with a four-segment progress bar instead. Each onboarding step's actions (Back as a text button, then the one primary action) are inline on desktop and a full-width sticky bar at the bottom on phones.
+- **Profile and settings sections** use a two-column row per section at ≥1024 px: the section title and a one-line description on the left (one third), the form on the right (two thirds, max 720 px). Each section saves on its own with a secondary "Save changes" button and an inline "Changes saved" confirmation.
+- **Exception:** the public marketing pages use a 1200 px page grid.
+- **Alignment:** text is left-aligned everywhere, empty states included, except the exam result moment.
 - **One primary action per screen**, placed bottom-right on desktop and as a full-width sticky button above the tab bar on mobile.
 
 ### Shape
@@ -208,7 +213,8 @@ Build these once in `src/components/ui/` and reuse them. Every component needs d
 | Progress path | Vertical path of levels and gates on Learn and Progress; current position marked with amber. |
 | Gate card | Shows a gate's criteria as a checklist with each item met or not, like CI checks (§8). |
 | Verdict panel | Verdict name, plain-language summary, range bars, conditions checklist, "what this means" and next step. |
-| Empty state | One sentence, one action, optional small illustration in line style. |
+| Empty state | One sentence, one action, optional small illustration in line style. Left-aligned in a dashed `--border-control` outline with `--radius-md`, 32 px vertical padding; never a tall centred block. |
+| App header | Sticky top bar of the app shell (§5): section label, "Log trade" (secondary), notifications and account menu (Radix Popover). |
 | Command palette | Desktop only (`Ctrl/⌘ + K`): log trade, open strategy, search lessons, go to any page. |
 
 ### Iconography

@@ -32,6 +32,7 @@ export function Field({ label, helper, error, numeric, suffix, className = '', i
           aria-describedby={describedBy}
           className={[
             'block min-h-11 w-full rounded-sm border bg-raised px-3 text-body text-text',
+            'read-only:border-border read-only:bg-surface read-only:text-muted',
             numeric ? 'font-mono' : '',
             suffix ? 'pr-12' : '',
             error ? 'border-danger' : 'border-control',

@@ -37,7 +37,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
-    name = models.CharField(max_length=120, blank=True)
+    first_name = models.CharField(max_length=80, blank=True)
+    last_name = models.CharField(max_length=80, blank=True)
     timezone = models.CharField(max_length=64, default="Africa/Lagos")
     role = models.CharField(max_length=16, choices=Role.choices, default=Role.LEARNER)
     is_active = models.BooleanField(default=True)
@@ -56,6 +57,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
 
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}".strip()
+
 
 class Profile(BaseModel):
     """Trader profile from onboarding (spec §4, §14 incl. peer-review changes)."""
@@ -71,7 +76,9 @@ class Profile(BaseModel):
     weekly_hours = models.PositiveSmallIntegerField(null=True, blank=True)
     risk_comfort = models.CharField(max_length=32, blank=True)
     answers = models.JSONField(default=dict, blank=True)  # experience and history (ON-3)
-    onboarding_step = models.PositiveSmallIntegerField(default=1)  # ON-1: resume on any device
+    # ON-1: the next onboarding step to show, so users resume on any device.
+    # 2 time and sessions · 3 experience · 4 plan review · 5 done (plan accepted).
+    onboarding_step = models.PositiveSmallIntegerField(default=2)
     # ON-7: money-related answers are encrypted; only a plaintext risk flag is stored beside them.
     readiness = EncryptedJSONField(null=True, blank=True)
     readiness_risk_flag = models.BooleanField(null=True, blank=True)

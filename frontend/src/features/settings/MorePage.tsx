@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { readDisplay, saveDisplay, type ThemePref } from '../../lib/theme'
 
-/** Settings (AS-2): display preferences for now. */
+/** Settings (AS-2): display preferences for now. Two columns on wide screens. */
 export default function MorePage() {
   const [display, setDisplay] = useState(readDisplay)
   const update = (patch: Partial<typeof display>) => {
@@ -11,39 +11,44 @@ export default function MorePage() {
   }
 
   return (
-    <div className="mx-auto max-w-[680px]">
+    <div>
       <PageHeader title="Settings" />
-      <fieldset className="mb-8">
-        <legend className="mb-2 text-h3">Theme</legend>
-        <div className="inline-flex rounded-md border border-control p-1" role="radiogroup" aria-label="Theme">
-          {(['system', 'light', 'dark'] as ThemePref[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              role="radio"
-              aria-checked={display.theme === t}
-              onClick={() => update({ theme: t })}
-              className={`min-h-11 rounded-sm px-4 text-small font-semibold capitalize ${
-                display.theme === t ? 'bg-raised text-text' : 'text-muted'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
+      <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
+        <fieldset>
+          <legend className="mb-2 text-h3">Theme</legend>
+          <div className="inline-flex rounded-md border border-control p-1" role="radiogroup" aria-label="Theme">
+            {(['system', 'light', 'dark'] as ThemePref[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="radio"
+                aria-checked={display.theme === t}
+                onClick={() => update({ theme: t })}
+                className={`min-h-11 rounded-sm px-4 text-small font-semibold capitalize ${
+                  display.theme === t ? 'bg-raised text-text' : 'text-muted'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        <div>
+          <h2 className="mb-2 text-h3">Display</h2>
+          <Toggle
+            label="Colour-blind mode"
+            help="Shows gains in blue and losses in orange."
+            checked={display.colourBlind}
+            onChange={(v) => update({ colourBlind: v })}
+          />
+          <Toggle
+            label="Data-saver mode"
+            help="Uses system fonts and stops images loading automatically."
+            checked={display.dataSaver}
+            onChange={(v) => update({ dataSaver: v })}
+          />
         </div>
-      </fieldset>
-      <Toggle
-        label="Colour-blind mode"
-        help="Shows gains in blue and losses in orange."
-        checked={display.colourBlind}
-        onChange={(v) => update({ colourBlind: v })}
-      />
-      <Toggle
-        label="Data-saver mode"
-        help="Uses system fonts and stops images loading automatically."
-        checked={display.dataSaver}
-        onChange={(v) => update({ dataSaver: v })}
-      />
+      </div>
     </div>
   )
 }

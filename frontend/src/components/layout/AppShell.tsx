@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router'
 import { BookOpen, FlaskConical, Menu, NotebookPen, Route } from 'lucide-react'
 import { ServerStatusBanner } from '../ui'
+import { AppHeader } from './AppHeader'
 import { Logo } from './Logo'
 
 /**
@@ -25,8 +26,10 @@ export function AppShell() {
         Skip to content
       </a>
 
-      <aside className="hidden border-r border-border bg-surface lg:flex lg:flex-col lg:gap-8 lg:px-4 lg:py-6">
-        <Logo className="px-3" />
+      <aside className="hidden border-r border-border bg-surface lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col lg:gap-6 lg:px-4">
+        <div className="flex h-16 items-center">
+          <Logo className="px-3" to="/learn" />
+        </div>
         <nav aria-label="Main">
           <ul className="flex flex-col gap-1">
             {NAV.map(({ to, label, icon: Icon }) => (
@@ -48,7 +51,8 @@ export function AppShell() {
         </nav>
       </aside>
 
-      <div className="flex min-h-dvh flex-col pb-20 lg:pb-0">
+      <div className="flex min-h-dvh min-w-0 flex-col pb-20 lg:pb-0">
+        <AppHeader />
         <div className="px-4 pt-4 md:px-6 lg:px-8 empty:hidden">
           <ServerStatusBanner />
         </div>

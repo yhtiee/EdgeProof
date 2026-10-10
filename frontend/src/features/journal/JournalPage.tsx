@@ -5,7 +5,7 @@ import { EmptyState, buttonClass } from '../../components/ui'
 /** Practice journal (JR-1): open from day one, no gate. */
 export default function JournalPage() {
   return (
-    <div className="mx-auto max-w-[1200px]">
+    <div>
       <PageHeader
         title="Journal"
         description="Practice trades, rule checks and reviews. Practice trades never count toward a verdict."

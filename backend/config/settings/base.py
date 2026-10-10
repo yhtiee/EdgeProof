@@ -179,7 +179,8 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "user": "600/hour",
         "anon": "120/hour",
-        "auth": "10/minute",
+        "auth": "10/minute",  # login and register, per IP
+        "refresh": "60/minute",  # runs on every page load
         "ai": "30/day",
     },
     # Only the host's known proxy hops are trusted for the client IP.
