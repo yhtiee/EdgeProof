@@ -76,7 +76,7 @@ export default function LandingPage() {
                 Create free account
               </Link>
               <Link
-                to="/try/position-size"
+                to="/try"
                 className="inline-flex min-h-11 items-center text-small font-semibold text-accent-text underline underline-offset-4"
               >
                 Try a lesson first, no account needed
@@ -240,7 +240,7 @@ export default function LandingPage() {
             <Link to="/sign-in" className="inline-flex min-h-11 items-center hover:text-text">
               Sign in
             </Link>
-            <Link to="/try/position-size" className="inline-flex min-h-11 items-center hover:text-text">
+            <Link to="/try" className="inline-flex min-h-11 items-center hover:text-text">
               Try a lesson
             </Link>
             <span className="inline-flex min-h-11 items-center">© 2026 EdgeProof</span>

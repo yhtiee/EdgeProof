@@ -17,7 +17,7 @@ from .serializers import (
     QuestionReportSerializer,
     SubmitSerializer,
 )
-from .services import start_attempt, submit_attempt
+from .services import first_incomplete_before, start_attempt, submit_attempt
 
 
 class LevelListView(generics.ListAPIView):
@@ -29,20 +29,53 @@ class LevelListView(generics.ListAPIView):
 
 
 class LessonProgressView(APIView):
-    """POST /lessons/{id}/progress: saves per block (AC-10)."""
+    """
+    POST /lessons/{slug}/progress: saves completed screens (AC-10). The client
+    saves locally first and sends the full set again when it reconnects, so
+    this merges and is safe to repeat.
+    """
 
     permission_classes = [RequiresGate(1)]
 
-    def post(self, request, pk):
-        lesson = get_object_or_404(Lesson, pk=pk, status=Lesson.Status.PUBLISHED)
-        progress, _ = LessonProgress.objects.get_or_create(user=request.user, lesson=lesson)
-        blocks = set(progress.completed_blocks) | set(request.data.get("completed_blocks", []))
-        progress.completed_blocks = sorted(int(b) for b in blocks)
-        if lesson.block_count and len(progress.completed_blocks) >= lesson.block_count and not progress.completed_at:
+    def post(self, request, slug):
+        lesson = get_object_or_404(Lesson, slug=slug)
+        serializer = LessonProgressSerializer(data=request.data, context={"lesson": lesson})
+        serializer.is_valid(raise_exception=True)
+        progress = LessonProgress.objects.filter(user=request.user, lesson=lesson).first()
+        if progress is None:
+            # Lessons open in order (spec §5). Already-started lessons can always be saved.
+            blocker = first_incomplete_before(request.user, lesson)
+            if blocker:
+                return Response(
+                    {
+                        "code": "lesson_locked",
+                        "message": f"Finish \"{blocker['title']}\" first. Lessons open in order.",
+                        "fields": {},
+                        "next": blocker["slug"],
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+            progress = LessonProgress.objects.create(user=request.user, lesson=lesson)
+        before = set(progress.completed_blocks)
+        merged = before | set(serializer.validated_data["completed_blocks"])
+        progress.completed_blocks = sorted(merged)
+        if merged != before:
+            ActivityEvent.objects.create(user=request.user, type="lesson_progress", ref=lesson.slug)
+        if len(merged) >= lesson.block_count and not progress.completed_at:
             progress.completed_at = timezone.now()
-            ActivityEvent.objects.create(user=request.user, type="lesson_completed", ref=str(lesson.id))
+            ActivityEvent.objects.create(user=request.user, type="lesson_completed", ref=lesson.slug)
         progress.save()
         return Response(LessonProgressSerializer(progress).data)
+
+
+class MyLessonProgressView(generics.ListAPIView):
+    """GET /me/lesson-progress: every lesson the user has started."""
+
+    serializer_class = LessonProgressSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        return LessonProgress.objects.owned_by(self.request.user).select_related("lesson")
 
 
 class ExamDetailView(generics.RetrieveAPIView):

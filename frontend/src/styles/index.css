@@ -53,6 +53,8 @@
   --text-h3--line-height: 1.625rem;
   --text-body: 1rem;
   --text-body--line-height: 1.625rem;
+  --text-lesson: 1.125rem;
+  --text-lesson--line-height: 1.875rem;
   --text-small: 0.875rem;
   --text-small--line-height: 1.375rem;
   --text-caption: 0.8125rem;
@@ -171,5 +173,47 @@
     .ep-range::-webkit-slider-runnable-track {
       background: CanvasText;
     }
+  }
+}
+
+/* Answer feedback panel (DESIGN.md §6): slides up in 200 ms; fades only with reduced motion. */
+@keyframes ep-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes ep-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@utility ep-slide-up {
+  animation: ep-slide-up var(--motion-base) var(--ease-standard);
+  @media (prefers-reduced-motion: reduce) {
+    animation: ep-fade-in var(--motion-fast) linear;
+  }
+}
+
+/* Lesson screens (DESIGN.md §6): each new screen fades and lifts 8px in 200 ms; opacity only with reduced motion. */
+@keyframes ep-screen-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@utility ep-screen-in {
+  animation: ep-screen-in var(--motion-base) var(--ease-standard);
+  @media (prefers-reduced-motion: reduce) {
+    animation: ep-fade-in var(--motion-fast) linear;
   }
 }

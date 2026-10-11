@@ -120,11 +120,31 @@ export async function refreshAccessToken(): Promise<boolean> {
   return refreshing
 }
 
-type Options = Omit<RequestInit, 'body'> & { body?: unknown; auth?: boolean }
+type Options = Omit<RequestInit, 'body'> & {
+  body?: unknown
+  auth?: boolean
+  /**
+   * Wait through cold starts (the default). Background work such as progress
+   * sync passes false: it fails fast and retries on the next 'online' event.
+   */
+  resilient?: boolean
+}
 
-export async function api<T>(path: string, { body, auth = true, headers, ...init }: Options = {}): Promise<T> {
+/** One attempt with a 15 s cap: a hung connection on a flaky network can't block the caller. */
+async function quickFetch(input: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, { ...init, signal: AbortSignal.timeout(15_000) })
+  } catch {
+    throw new OfflineError()
+  }
+}
+
+export async function api<T>(
+  path: string,
+  { body, auth = true, resilient = true, headers, ...init }: Options = {},
+): Promise<T> {
   const send = () =>
-    resilientFetch(`${BASE}${path}`, {
+    (resilient ? resilientFetch : quickFetch)(`${BASE}${path}`, {
       ...init,
       credentials: 'include',
       headers: {

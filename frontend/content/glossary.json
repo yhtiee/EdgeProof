@@ -1,0 +1,206 @@
+{
+  "currency pair": {
+    "term": "Currency pair",
+    "definition": "Two currencies quoted against each other, like EUR/USD. The price is how much of the second currency one unit of the first costs."
+  },
+  "base currency": {
+    "term": "Base currency",
+    "definition": "The first currency in a pair. In EUR/USD it's the euro."
+  },
+  "quote currency": {
+    "term": "Quote currency",
+    "definition": "The second currency in a pair, the one the price is measured in. In EUR/USD it's the US dollar."
+  },
+  "broker": {
+    "term": "Broker",
+    "definition": "The company that holds your account and fills your orders. Check that it's regulated before you deposit anything."
+  },
+  "pip": {
+    "term": "Pip",
+    "definition": "The standard small price step. The fourth decimal place for most pairs (0.0001), the second for yen pairs (0.01)."
+  },
+  "lot": {
+    "term": "Lot",
+    "definition": "A unit of trade size. A standard lot is 100,000 units of the base currency, a mini lot 10,000 and a micro lot 1,000."
+  },
+  "leverage": {
+    "term": "Leverage",
+    "definition": "Controlling a position bigger than your deposit. It makes gains and losses larger in money terms; it doesn't change the odds."
+  },
+  "margin": {
+    "term": "Margin",
+    "definition": "The part of your balance a broker sets aside to keep a leveraged position open."
+  },
+  "spread": {
+    "term": "Spread",
+    "definition": "The gap between the buy and sell price. You pay it on every trade."
+  },
+  "stop-loss": {
+    "term": "Stop-loss",
+    "definition": "An order that closes a trade at a set price to cap the loss. It may fill worse than its price in fast markets or over gaps."
+  },
+  "position size": {
+    "term": "Position size",
+    "definition": "How big a trade is, in lots. It sets how much money each pip is worth."
+  },
+  "r-multiple": {
+    "term": "R-multiple",
+    "definition": "A trade's result divided by the money risked on it. Risk $10 and make $25: +2.5R."
+  },
+  "expectancy": {
+    "term": "Expectancy",
+    "definition": "The average result per trade, in R, across many trades. Shown with its range, because small samples mislead."
+  },
+  "win rate": {
+    "term": "Win rate",
+    "definition": "Winning trades divided by closed trades. On its own it says nothing about whether a strategy makes money."
+  },
+  "drawdown": {
+    "term": "Drawdown",
+    "definition": "The fall from an account's highest point to its lowest point after it, as a percentage or in R."
+  },
+  "liquidity": {
+    "term": "Liquidity",
+    "definition": "How easily something can be bought or sold without moving its price. More buyers and sellers means more liquidity."
+  },
+  "volatility": {
+    "term": "Volatility",
+    "definition": "How much and how fast a price moves. High volatility means bigger, quicker swings."
+  },
+  "slippage": {
+    "term": "Slippage",
+    "definition": "The difference between the price you asked for and the price your order actually filled at."
+  },
+  "swap": {
+    "term": "Swap",
+    "definition": "The overnight financing charge or credit for holding a position past the daily rollover, based on the two currencies’ interest rates."
+  },
+  "gap": {
+    "term": "Gap",
+    "definition": "A jump in price between one quote and the next, with no trading in between, often after a weekend or big news."
+  },
+  "margin call": {
+    "term": "Margin call",
+    "definition": "A warning from your broker that your equity is close to the level needed to keep positions open."
+  },
+  "stop-out": {
+    "term": "Stop-out",
+    "definition": "When a broker automatically closes your positions because your margin has fallen to its minimum level."
+  },
+  "negative balance protection": {
+    "term": "Negative balance protection",
+    "definition": "A rule or broker policy that stops a retail account from falling below zero, so you can’t owe more than you deposited."
+  },
+  "session": {
+    "term": "Session",
+    "definition": "The trading hours of a major financial centre, such as Asia, London or New York."
+  },
+  "support": {
+    "term": "Support",
+    "definition": "A price area where falling prices have stopped before, because buyers stepped in."
+  },
+  "resistance": {
+    "term": "Resistance",
+    "definition": "A price area where rising prices have stopped before, because sellers stepped in."
+  },
+  "trend": {
+    "term": "Trend",
+    "definition": "A sustained direction in price: higher highs and higher lows (uptrend) or lower highs and lower lows (downtrend)."
+  },
+  "candlestick": {
+    "term": "Candlestick",
+    "definition": "A chart bar showing a period’s open, high, low and close prices."
+  },
+  "moving average": {
+    "term": "Moving average",
+    "definition": "The average closing price over a set number of recent periods, redrawn as each new period closes."
+  },
+  "rsi": {
+    "term": "RSI",
+    "definition": "Relative Strength Index: an indicator from 0 to 100 that compares recent gains with recent losses."
+  },
+  "atr": {
+    "term": "ATR",
+    "definition": "Average True Range: the average size of a period’s full price range, used to measure volatility."
+  },
+  "timeframe": {
+    "term": "Timeframe",
+    "definition": "The period each bar or candle on a chart covers, such as 15 minutes, 4 hours or 1 day."
+  },
+  "interest rate": {
+    "term": "Interest rate",
+    "definition": "The cost of borrowing money, or the return for lending it, as a percentage per year."
+  },
+  "central bank": {
+    "term": "Central bank",
+    "definition": "The institution that sets a country’s main interest rate and manages its currency, such as the Federal Reserve or the Central Bank of Nigeria."
+  },
+  "inflation": {
+    "term": "Inflation",
+    "definition": "The rate at which prices in an economy rise over time."
+  },
+  "carry trade": {
+    "term": "Carry trade",
+    "definition": "Holding a higher-interest currency against a lower-interest one to earn the difference, while taking on exchange rate risk."
+  },
+  "correlation": {
+    "term": "Correlation",
+    "definition": "How closely two prices tend to move together, from +1 (same direction) to −1 (opposite directions)."
+  },
+  "edge": {
+    "term": "Edge",
+    "definition": "A repeatable advantage: rules whose results, after costs, have shown a positive expectancy on data they weren’t built on."
+  },
+  "backtest": {
+    "term": "Backtest",
+    "definition": "Testing a strategy’s rules on past price data to see how they would have performed."
+  },
+  "overfitting": {
+    "term": "Overfitting",
+    "definition": "Tuning a strategy so closely to past data that it fits the noise, not a real pattern, and then fails on new data."
+  },
+  "out-of-sample": {
+    "term": "Out-of-sample",
+    "definition": "Data a strategy wasn’t built or tuned on, kept aside to test it fairly."
+  },
+  "sample size": {
+    "term": "Sample size",
+    "definition": "How many trades or observations a result is based on. Small samples can show almost anything by chance."
+  },
+  "mechanical strategy": {
+    "term": "Mechanical strategy",
+    "definition": "A strategy whose rules are precise enough that two people would take exactly the same trades."
+  },
+  "discretionary strategy": {
+    "term": "Discretionary strategy",
+    "definition": "A strategy that leaves some decisions to the trader’s judgement in the moment."
+  },
+  "risk of ruin": {
+    "term": "Risk of ruin",
+    "definition": "The chance that losses shrink an account to a level you can’t or won’t recover from."
+  },
+  "profit factor": {
+    "term": "Profit factor",
+    "definition": "Total winning R divided by total losing R. Above 1 means the wins outweighed the losses."
+  },
+  "equity curve": {
+    "term": "Equity curve",
+    "definition": "A chart of an account’s value, or cumulative R, trade by trade over time."
+  },
+  "confidence range": {
+    "term": "Confidence range",
+    "definition": "The range a true value probably lies in, given the data. Fewer trades means a wider range."
+  },
+  "tilt": {
+    "term": "Tilt",
+    "definition": "Trading driven by emotion after losses or frustration, usually outside the rules."
+  },
+  "trading journal": {
+    "term": "Trading journal",
+    "definition": "A record of every trade with its reasons, rule checks, result and how you felt."
+  },
+  "prop firm": {
+    "term": "Prop firm",
+    "definition": "A company that sells trading challenges and offers to share profits on a funded account if you pass its rules."
+  }
+}

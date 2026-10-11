@@ -10,7 +10,11 @@
     "lint": "oxlint",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
-    "lessons": "node scripts/compile-lessons.mjs --drafts"
+    "lessons": "node scripts/compile-lessons.mjs --drafts",
+    "predev": "node scripts/compile-lessons.mjs --drafts",
+    "draft": "node scripts/ai/draft.mjs",
+    "sources:check": "node scripts/check-sources.mjs",
+    "draft:audit": "node scripts/ai/audit.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.2.0",

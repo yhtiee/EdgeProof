@@ -32,7 +32,8 @@ api_v1 = [
     path("me/gate-passes", gates.MyGatePassesView.as_view()),
     # Academy
     path("levels", academy.LevelListView.as_view()),
-    path("lessons/<uuid:pk>/progress", academy.LessonProgressView.as_view()),
+    path("lessons/<slug:slug>/progress", academy.LessonProgressView.as_view()),
+    path("me/lesson-progress", academy.MyLessonProgressView.as_view()),
     path("exams/<uuid:pk>", academy.ExamDetailView.as_view()),
     path("exams/<uuid:pk>/attempts", academy.StartAttemptView.as_view()),
     path("attempts/<uuid:pk>/submit", academy.SubmitAttemptView.as_view()),

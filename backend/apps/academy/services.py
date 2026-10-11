@@ -92,3 +92,39 @@ def submit_attempt(attempt: ExamAttempt, answers: dict) -> dict:
         "missed_concepts": missed,
         "can_retake_now": cooldown_until(attempt.user, attempt.exam) is None,
     }
+
+
+# --- Lesson sequence -------------------------------------------------------
+# Lessons open in order: a lesson unlocks only when every earlier published
+# lesson (by level, module and lesson order) is complete. Placement exams
+# (spec §5) will be the way to skip ahead once they exist.
+
+
+def lesson_sequence():
+    """Published lessons in curriculum order."""
+    from .models import Lesson
+
+    published = Lesson.Status.PUBLISHED
+    return Lesson.objects.filter(
+        status=published, module__status=published, module__level__status=published
+    ).order_by("module__level__order", "module__order", "order")
+
+
+def first_incomplete_before(user, lesson):
+    """The earliest unfinished lesson before `lesson`, or None if it's unlocked."""
+    from .models import LessonProgress
+
+    ordered = list(lesson_sequence().values_list("id", "slug", "title"))
+    ids = [row[0] for row in ordered]
+    if lesson.id not in ids:
+        return None
+    earlier = ordered[: ids.index(lesson.id)]
+    done = set(
+        LessonProgress.objects.filter(
+            user=user, lesson_id__in=[row[0] for row in earlier], completed_at__isnull=False
+        ).values_list("lesson_id", flat=True)
+    )
+    for lesson_id, slug, title in earlier:
+        if lesson_id not in done:
+            return {"slug": slug, "title": title}
+    return None

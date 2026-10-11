@@ -1,0 +1,462 @@
+{
+  "babypips-pipsology": {
+    "kind": "web",
+    "author": "Babypips",
+    "title": "School of Pipsology",
+    "year": null,
+    "access": "free",
+    "url": "https://www.babypips.com/learn/forex",
+    "about": "Free beginner course covering forex basics: pairs, pips, lots, leverage, margin, order types and sessions."
+  },
+  "taleb-fooled-by-randomness": {
+    "kind": "book",
+    "author": "Nassim Nicholas Taleb",
+    "title": "Fooled by Randomness",
+    "year": 2001,
+    "access": "paid",
+    "url": "https://openlibrary.org/search?q=Fooled+by+Randomness+Taleb",
+    "about": "How luck is mistaken for skill in markets; survivorship bias; why good results from a small sample can be noise."
+  },
+  "douglas-trading-in-the-zone": {
+    "kind": "book",
+    "author": "Mark Douglas",
+    "title": "Trading in the Zone",
+    "year": 2000,
+    "access": "paid",
+    "url": "https://openlibrary.org/search?q=Trading+in+the+Zone+Mark+Douglas",
+    "about": "Trading psychology: thinking in probabilities, accepting risk before entering, and consistency as a mindset. Douglas lists 'five fundamental truths': anything can happen; you don't need to know what will happen next to make money; wins and losses are randomly distributed for any given edge; an edge is only a higher probability of one outcome over another; every moment in the market is unique."
+  },
+  "douglas-disciplined-trader": {
+    "kind": "book",
+    "author": "Mark Douglas",
+    "title": "The Disciplined Trader",
+    "year": 1990,
+    "access": "paid",
+    "url": "https://openlibrary.org/search?q=The+Disciplined+Trader+Mark+Douglas",
+    "about": "How beliefs and fear shape trading decisions; why traders break their own rules."
+  },
+  "kahneman-thinking-fast-slow": {
+    "kind": "book",
+    "author": "Daniel Kahneman",
+    "title": "Thinking, Fast and Slow",
+    "year": 2011,
+    "access": "paid",
+    "url": "https://openlibrary.org/search?q=Thinking+Fast+and+Slow+Kahneman",
+    "about": "Cognitive biases: loss aversion, overconfidence, the law of small numbers, hindsight bias."
+  },
+  "murphy-technical-analysis": {
+    "kind": "book",
+    "author": "John J. Murphy",
+    "title": "Technical Analysis of the Financial Markets",
+    "year": 1999,
+    "access": "paid",
+    "url": "https://openlibrary.org/search?q=Technical+Analysis+of+the+Financial+Markets+Murphy",
+    "about": "Reference text on chart analysis: trends, support and resistance, chart patterns, moving averages, oscillators and intermarket analysis."
+  },
+  "nison-candlesticks": {
+    "kind": "book",
+    "author": "Steve Nison",
+    "title": "Japanese Candlestick Charting Techniques",
+    "year": 1991,
+    "access": "paid",
+    "url": "https://openlibrary.org/search?q=Japanese+Candlestick+Charting+Techniques+Nison",
+    "about": "How candlestick charts are read; common candle patterns and their context."
+  },
+  "aronson-ebta": {
+    "kind": "book",
+    "author": "David Aronson",
+    "title": "Evidence-Based Technical Analysis",
+    "year": 2006,
+    "access": "paid",
+    "url": "https://openlibrary.org/search?q=Evidence-Based+Technical+Analysis+Aronson",
+    "about": "Applying the scientific method and statistical inference to trading rules; data-mining bias; why rules must be objective and tested out of sample."
+  },
+  "schwager-market-wizards": {
+    "kind": "book",
+    "author": "Jack D. Schwager",
+    "title": "Market Wizards",
+    "year": 1989,
+    "access": "paid",
+    "url": "https://openlibrary.org/search?q=Market+Wizards+Schwager",
+    "about": "Interviews with successful futures, currency and stock traders; recurring themes of risk control, discipline and individual methods."
+  },
+  "schwager-new-market-wizards": {
+    "kind": "book",
+    "author": "Jack D. Schwager",
+    "title": "The New Market Wizards",
+    "year": 1992,
+    "access": "paid",
+    "url": "https://openlibrary.org/search?q=The+New+Market+Wizards+Schwager",
+    "about": "Further trader interviews; emphasis on money management and matching a method to one's personality."
+  },
+  "lefevre-reminiscences": {
+    "kind": "book",
+    "author": "Edwin Lefèvre",
+    "title": "Reminiscences of a Stock Operator",
+    "year": 1923,
+    "access": "free",
+    "url": "https://openlibrary.org/search?q=Reminiscences+of+a+Stock+Operator",
+    "about": "Fictionalised memoir of speculator Jesse Livermore: patience, sitting through trends, and the cost of acting on tips and emotion. Public domain in the US."
+  },
+  "esma-cfd-restrictions-2018": {
+    "kind": "report",
+    "author": "European Securities and Markets Authority (ESMA)",
+    "title": "ESMA agrees to prohibit binary options and restrict CFDs to protect retail investors",
+    "year": 2018,
+    "access": "free",
+    "url": "https://www.esma.europa.eu/node/84933",
+    "about": "EU regulator's 2018 measures on contracts for difference, including leverage limits, margin close-out, negative balance protection and standard risk warnings.",
+    "facts": [
+      "74–89% of retail CFD accounts typically lose money on their investments, according to ESMA's 2018 review.",
+      "ESMA's 2018 measures limited leverage for retail CFD clients to between 30:1 and 2:1: 30:1 for major currency pairs and 20:1 for non-major currency pairs, gold and major indices.",
+      "ESMA's 2018 measures required providers to close out a retail client's positions when margin falls to 50% of the minimum required (margin close-out).",
+      "ESMA's 2018 measures required negative balance protection on a per-account basis, so a retail client cannot lose more than the money in the account."
+    ]
+  },
+  "chague-day-trading-2019": {
+    "kind": "paper",
+    "author": "Fernando Chague, Rodrigo De-Losso and Bruno Giovannetti",
+    "title": "Day Trading for a Living?",
+    "year": 2019,
+    "access": "free",
+    "url": "https://ssrn.com/abstract=3423101",
+    "about": "Study of all individuals who began day trading Brazilian equity futures between 2013 and 2015.",
+    "facts": [
+      "Of the individuals who persisted in day trading for more than 300 days, 97% lost money.",
+      "The study found no evidence that day traders learn by trading."
+    ]
+  },
+  "bis-triennial-2022": {
+    "kind": "report",
+    "author": "Bank for International Settlements (BIS)",
+    "title": "Triennial Central Bank Survey of Foreign Exchange and OTC Derivatives Markets, 2022",
+    "year": 2022,
+    "access": "free",
+    "url": "https://www.bis.org/statistics/rpfx22.htm",
+    "about": "The most comprehensive survey of the size and structure of the foreign exchange market, run every three years.",
+    "facts": [
+      "Trading in over-the-counter foreign exchange markets averaged $7.5 trillion per day in April 2022."
+    ]
+  },
+  "fed-monetary-policy": {
+    "kind": "web",
+    "author": "Board of Governors of the Federal Reserve System",
+    "title": "Monetary policy",
+    "year": null,
+    "access": "free",
+    "url": "https://www.federalreserve.gov/monetarypolicy.htm",
+    "about": "How the US central bank sets interest rates; FOMC statements and meeting calendar."
+  },
+  "ecb-monetary-policy": {
+    "kind": "web",
+    "author": "European Central Bank",
+    "title": "Monetary policy",
+    "year": null,
+    "access": "free",
+    "url": "https://www.ecb.europa.eu/mopo/html/index.en.html",
+    "about": "How the euro area's central bank sets interest rates; decisions and explainers."
+  },
+  "boe-monetary-policy": {
+    "kind": "web",
+    "author": "Bank of England",
+    "title": "Monetary policy",
+    "year": null,
+    "access": "free",
+    "url": "https://www.bankofengland.co.uk/monetary-policy",
+    "about": "How the UK's central bank sets interest rates; Monetary Policy Committee decisions."
+  },
+  "cbn-monetary-policy": {
+    "kind": "web",
+    "author": "Central Bank of Nigeria",
+    "title": "Monetary policy",
+    "year": null,
+    "access": "free",
+    "url": "https://www.cbn.gov.ng/MonetaryPolicy/",
+    "about": "Nigeria's central bank: Monetary Policy Committee communiqués and the policy rate."
+  },
+  "bis-triennial-2025": {
+    "kind": "report",
+    "author": "Bank for International Settlements (BIS)",
+    "title": "Triennial Central Bank Survey of Foreign Exchange and OTC Derivatives Markets, 2025",
+    "year": 2025,
+    "access": "free",
+    "url": "https://www.bis.org/press/p250930.htm",
+    "about": "The latest three-yearly survey of the size and structure of the foreign exchange market.",
+    "facts": [
+      "Global FX trading averaged $9.6 trillion per day in April 2025.",
+      "The US dollar was on one side of 89% of all FX trades in April 2025."
+    ]
+  },
+  "elder-trading-for-a-living": {
+    "kind": "book",
+    "author": "Alexander Elder",
+    "title": "Trading for a Living",
+    "year": 1993,
+    "access": "paid",
+    "url": "https://openlibrary.org/search?q=Trading+for+a+Living+Alexander+Elder",
+    "about": "Trading psychology, technical analysis and risk management; introduces the 'triple screen' method of reading several timeframes, and money-management rules that limit risk per trade."
+  },
+  "steenbarger-daily-trading-coach": {
+    "kind": "book",
+    "author": "Brett N. Steenbarger",
+    "title": "The Daily Trading Coach",
+    "year": 2009,
+    "access": "paid",
+    "url": "https://openlibrary.org/search?q=The+Daily+Trading+Coach+Steenbarger",
+    "about": "A trading psychologist's lessons on self-coaching: journaling, routines, reviewing performance and changing habits."
+  },
+  "edwards-magee-stock-trends": {
+    "kind": "book",
+    "author": "Robert D. Edwards and John Magee",
+    "title": "Technical Analysis of Stock Trends",
+    "year": 1948,
+    "access": "paid",
+    "url": "https://openlibrary.org/search?q=Technical+Analysis+of+Stock+Trends+Edwards+Magee",
+    "about": "Classic text on trends, support and resistance and chart patterns."
+  },
+  "wilder-new-concepts": {
+    "kind": "book",
+    "author": "J. Welles Wilder Jr.",
+    "title": "New Concepts in Technical Trading Systems",
+    "year": 1978,
+    "access": "paid",
+    "url": "https://openlibrary.org/search?q=New+Concepts+in+Technical+Trading+Systems+Wilder",
+    "about": "Original description of indicators including the Relative Strength Index (RSI, which Wilder set to 14 periods by default), Average True Range (ATR), Parabolic SAR and the Directional Movement Index (ADX)."
+  },
+  "kahneman-tversky-prospect-theory": {
+    "kind": "paper",
+    "author": "Daniel Kahneman and Amos Tversky",
+    "title": "Prospect Theory: An Analysis of Decision under Risk",
+    "year": 1979,
+    "access": "paid",
+    "url": "https://doi.org/10.2307/1914185",
+    "about": "People weigh losses more heavily than equal gains (loss aversion) and tend to take more risk to avoid a sure loss than to secure a gain."
+  },
+  "barber-odean-trading-hazardous": {
+    "kind": "paper",
+    "author": "Brad M. Barber and Terrance Odean",
+    "title": "Trading Is Hazardous to Your Wealth: The Common Stock Investment Performance of Individual Investors",
+    "year": 2000,
+    "access": "paid",
+    "url": "https://doi.org/10.1111/0022-1082.00226",
+    "about": "Study of tens of thousands of US brokerage households: those who traded most actively earned lower net returns, with overconfidence and trading costs as explanations.",
+    "facts": [
+      "Of 66,465 US brokerage households studied from 1991 to 1996, those that traded most earned 11.4% a year, while the market returned 17.9%."
+    ]
+  },
+  "bailey-backtest-overfitting": {
+    "kind": "paper",
+    "author": "David H. Bailey, Jonathan M. Borwein, Marcos López de Prado and Qiji Jim Zhu",
+    "title": "Pseudo-Mathematics and Financial Charlatanism: The Effects of Backtest Overfitting on Out-of-Sample Performance",
+    "year": 2014,
+    "access": "free",
+    "url": "https://www.ams.org/notices/201405/rnoti-p458.pdf",
+    "about": "Shows how trying many strategy variations on the same data makes an impressive backtest likely by chance, and why such results tend to fail out of sample."
+  },
+  "harvey-liu-backtesting": {
+    "kind": "paper",
+    "author": "Campbell R. Harvey and Yan Liu",
+    "title": "Backtesting",
+    "year": 2015,
+    "access": "free",
+    "url": "https://ssrn.com/abstract=2345489",
+    "about": "Argues that backtested results should be discounted (haircut) to account for the number of strategies tried, i.e. multiple testing."
+  },
+  "fca-scams": {
+    "kind": "web",
+    "author": "Financial Conduct Authority (FCA)",
+    "title": "Protect yourself from scams",
+    "year": null,
+    "access": "free",
+    "url": "https://www.fca.org.uk/consumers/protect-yourself-scams",
+    "about": "UK regulator's guidance on spotting investment scams, checking whether a firm is authorised, and the warning list of unauthorised firms."
+  },
+  "cftc-learn-and-protect": {
+    "kind": "web",
+    "author": "US Commodity Futures Trading Commission (CFTC)",
+    "title": "Learn and protect",
+    "year": null,
+    "access": "free",
+    "url": "https://www.cftc.gov/LearnAndProtect",
+    "about": "US derivatives regulator's fraud advisories, including forex and trading-scheme scams, and how to check registration."
+  },
+  "sec-nigeria": {
+    "kind": "web",
+    "author": "Securities and Exchange Commission, Nigeria",
+    "title": "Securities and Exchange Commission Nigeria",
+    "year": null,
+    "access": "free",
+    "url": "https://sec.gov.ng/",
+    "about": "Nigeria's capital market regulator; publishes registered operators and warnings about unregistered investment platforms."
+  },
+  "businessday-sec-warning": {
+    "kind": "web",
+    "author": "BusinessDay",
+    "title": "Nigeria's SEC warns on proliferation of unregistered online platforms",
+    "year": null,
+    "access": "free",
+    "url": "https://businessday.ng/markets/article/nigerias-sec-warns-on-proliferation-of-unregistered-online-platforms/",
+    "about": "News report of the Nigerian SEC warning the public about unregistered online investment platforms."
+  },
+  "investor-gov-forex": {
+    "kind": "web",
+    "author": "US Securities and Exchange Commission, Investor.gov",
+    "title": "Forex trading",
+    "year": null,
+    "access": "free",
+    "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/forex-trading",
+    "about": "US investor-education explainer on forex trading, its risks and common frauds."
+  },
+  "fca-ps19-18": {
+    "kind": "report",
+    "author": "Financial Conduct Authority (FCA)",
+    "title": "PS19/18: Restricting contract for difference products sold to retail clients",
+    "year": 2019,
+    "access": "free",
+    "url": "https://www.fca.org.uk/publications/policy-statements/ps19-18-restricting-contract-difference-products",
+    "about": "The UK regulator's permanent rules for CFDs sold to retail clients: leverage limits, margin close-out, negative balance protection, no inducements and standard risk warnings.",
+    "facts": [
+      "Since August 2019, UK rules limit retail CFD leverage to between 30:1 and 2:1 depending on the underlying, with 30:1 for major currency pairs.",
+      "UK rules require firms to close out a retail client's positions when their funds fall to 50% of the margin needed to keep them open.",
+      "UK rules require that a retail client cannot lose more than the total funds in their CFD account."
+    ]
+  },
+  "boe-uk-fx-survey-2025": {
+    "kind": "report",
+    "author": "Bank of England",
+    "title": "BIS Triennial Survey 2025: summary of UK results",
+    "year": 2025,
+    "access": "free",
+    "url": "https://www.bankofengland.co.uk/-/media/boe/files/statistics/bis-survey/2025/summary-of-uk-survey-results-2025.pdf",
+    "about": "The UK's share of the global foreign exchange market in the 2025 survey.",
+    "facts": [
+      "The UK remained the largest centre of foreign exchange trading in April 2025, with 37.8% of global turnover."
+    ]
+  },
+  "cftc-2010-retail-forex-rules": {
+    "kind": "web",
+    "author": "US Commodity Futures Trading Commission (CFTC), reprinted by Hedge Fund Law Blog",
+    "title": "CFTC releases final retail forex rules",
+    "year": 2010,
+    "access": "free",
+    "url": "https://hedgefundlawblog.com/?p=3751",
+    "about": "The US rules for retail forex brokers that took effect in October 2010, including leverage limits set through the NFA.",
+    "facts": [
+      "US rules that took effect in October 2010 limit retail forex leverage to 50:1 on major currency pairs and 20:1 on other pairs."
+    ]
+  },
+  "snb-2015-jordan": {
+    "kind": "web",
+    "author": "Thomas Jordan, Swiss National Bank (published by the BIS)",
+    "title": "The rationale for discontinuing the minimum exchange rate and lowering interest rates",
+    "year": 2015,
+    "access": "free",
+    "url": "https://www.bis.org/review/r150116a.htm",
+    "about": "The Swiss National Bank chairman's explanation of the January 2015 decision to end the franc's minimum exchange rate against the euro.",
+    "facts": [
+      "On 15 January 2015 the Swiss National Bank discontinued its minimum exchange rate of 1.20 Swiss francs per euro and lowered its deposit rate to −0.75%."
+    ]
+  },
+  "cnbc-fxcm-2015": {
+    "kind": "web",
+    "author": "CNBC",
+    "title": "FXCM to forgive most clients for negative balances on Swiss franc move",
+    "year": 2015,
+    "access": "free",
+    "url": "https://www.cnbc.com/2015/01/28/fxcm-to-forgive-most-clients-for-negative-balances-on-swiss-franc-move.html",
+    "about": "Report on retail broker FXCM's losses after the Swiss franc move, when many client accounts fell below zero.",
+    "facts": [
+      "After the Swiss franc move in January 2015, FXCM's clients owed it more than $225 million in negative balances."
+    ]
+  },
+  "cftc-my-forex-funds-2023": {
+    "kind": "web",
+    "author": "US Commodity Futures Trading Commission (CFTC)",
+    "title": "CFTC charges 'My Forex Funds' with fraudulently taking over $300 million from customers hoping to become professional traders",
+    "year": 2023,
+    "access": "free",
+    "url": "https://www.cftc.gov/PressRoom/PressReleases/8771-23",
+    "about": "Press release (8771-23) announcing the CFTC complaint against a large prop trading firm and the freeze of its assets.",
+    "facts": [
+      "In September 2023 the CFTC charged the prop firm My Forex Funds with fraudulently taking over $300 million from customers, and a court froze its assets."
+    ]
+  },
+  "willkie-my-forex-funds-2025": {
+    "kind": "web",
+    "author": "Willkie Farr & Gallagher",
+    "title": "New Jersey federal judge dismisses forex case with prejudice and awards attorney fees",
+    "year": 2025,
+    "access": "free",
+    "url": "https://complianceconcourse.willkie.com/articles/new-jersey-federal-judge-dismisses-forex-case-with-prejudice-and-awards-attorney-fees/",
+    "about": "Law firm summary of the May 2025 dismissal of the CFTC's case against My Forex Funds' parent company.",
+    "facts": [
+      "In May 2025 a US federal judge dismissed the CFTC's case against My Forex Funds' parent with prejudice and sanctioned the CFTC after finding it had made false representations to the court."
+    ]
+  },
+  "fed-fomc-faq": {
+    "kind": "web",
+    "author": "Board of Governors of the Federal Reserve System",
+    "title": "What is the FOMC and when does it meet?",
+    "year": null,
+    "access": "free",
+    "url": "https://www.federalreserve.gov/faqs/about_12844.htm",
+    "about": "The Federal Reserve's committee that sets US interest rate policy, and its meeting schedule.",
+    "facts": [
+      "The Federal Open Market Committee holds eight regularly scheduled meetings a year."
+    ]
+  },
+  "boe-mpc-schedule-2016": {
+    "kind": "web",
+    "author": "Bank of England",
+    "title": "Monetary Policy Committee announcement dates for 2017 and 2018",
+    "year": 2016,
+    "access": "free",
+    "url": "https://www.bankofengland.co.uk/news/2016/september/mpc-announcement-dates-for-2017-and-2018",
+    "about": "The Bank of England's change from monthly rate meetings to eight a year.",
+    "facts": [
+      "From 2017 the Bank of England's Monetary Policy Committee meets eight times a year instead of monthly."
+    ]
+  },
+  "cbn-mpc-november-2025": {
+    "kind": "report",
+    "author": "Central Bank of Nigeria",
+    "title": "Monetary Policy Committee Communiqué No. 160, November 2025",
+    "year": 2025,
+    "access": "free",
+    "url": "https://www.cbn.gov.ng/Out/2025/CCD/MPC%20Communique%20No.%20160%20%20November%2025%202025.pdf",
+    "about": "The CBN Monetary Policy Committee's decision and reasoning at its November 2025 meeting.",
+    "facts": [
+      "At its November 2025 meeting, the CBN's Monetary Policy Committee held the Monetary Policy Rate at 27.0%."
+    ]
+  },
+  "sec-nigeria-isa-2025-forex": {
+    "kind": "web",
+    "author": "Financial EDGE",
+    "title": "SEC warns unregistered digital and forex trading platforms now a crime under ISA 2025",
+    "year": 2025,
+    "access": "free",
+    "url": "https://financialedge.com.ng/sec-warns-unregistered-digital-and-forex-trading-platforms-now-a-crime-under-isa-2025/",
+    "about": "Report of the Nigerian SEC's April 2025 statement on registration of online forex trading platforms under the Investments and Securities Act 2025.",
+    "facts": [
+      "In April 2025 Nigeria's SEC said that operating an online forex trading platform without SEC registration is illegal under the Investments and Securities Act 2025."
+    ]
+  },
+  "tversky-kahneman-small-numbers": {
+    "kind": "paper",
+    "author": "Amos Tversky and Daniel Kahneman",
+    "title": "Belief in the Law of Small Numbers",
+    "year": 1971,
+    "access": "paid",
+    "url": "https://doi.org/10.1037/h0031322",
+    "about": "People expect small random samples to look like the population they came from, and so read too much into a few results."
+  },
+  "bls-employment-situation": {
+    "kind": "web",
+    "author": "US Bureau of Labor Statistics",
+    "title": "The Employment Situation",
+    "year": null,
+    "access": "free",
+    "url": "https://www.bls.gov/news.release/empsit.toc.htm",
+    "about": "The monthly US jobs report, including nonfarm payrolls and the unemployment rate; usually released on the first Friday of the month at 8:30 a.m. US Eastern time."
+  }
+}

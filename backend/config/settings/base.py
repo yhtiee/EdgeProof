@@ -177,8 +177,8 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.AnonRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "user": "600/hour",
-        "anon": "120/hour",
+        "user": env("THROTTLE_USER_RATE", "600/hour"),
+        "anon": env("THROTTLE_ANON_RATE", "120/hour"),
         "auth": "10/minute",  # login and register, per IP
         "refresh": "60/minute",  # runs on every page load
         "ai": "30/day",

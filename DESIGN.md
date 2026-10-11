@@ -122,6 +122,7 @@ One superfamily, engineered and honest: **IBM Plex Sans** for everything written
 | H2 section | Plex Sans | 24 / 32 (21 / 28 mobile) | 600 | 0 |
 | H3 card or block title | Plex Sans | 18 / 26 | 600 | 0 |
 | Body | Plex Sans | 16 / 26 | 400 | 0 |
+| Lesson body (lesson screens only) | Plex Sans | 18 / 30 | 400 | 0 |
 | Body small | Plex Sans | 14 / 22 | 400 | 0 |
 | Caption | Plex Sans | 13 / 18 | 400 | 0 |
 | Figure large (stat) | Plex Mono | 32 / 36 | 500 | −0.01em |
@@ -150,7 +151,7 @@ A 4 px base. Allowed steps: `4, 8, 12, 16, 24, 32, 48, 64, 96`. Use Tailwind's d
 - **Measure still applies to text, not to containers.** Paragraphs keep `max-width: 68ch` (lessons) or about 60ch (descriptions) on the text element itself, so lines stay readable while the layout uses the full width.
 - **Auth and onboarding: split screen.** These screens follow the same rule. At ≥1024 px the screen is two equal columns that fill the width. Left, on `--bg`: the logo, then the H1, description and form, left-aligned (sign-in and sign-up forms max 420 px, onboarding steps max 560 px). Right, on `--surface` with a left `--border`: context that would otherwise need scrolling to find. Sign-up shows the steps that follow; sign-in shows a range-bar example; onboarding shows the step list (current step in amber, done steps ticked) and the answers saved so far. Below 1024 px the right panel is hidden and onboarding shows "Step N of 4" with a four-segment progress bar instead. Each onboarding step's actions (Back as a text button, then the one primary action) are inline on desktop and a full-width sticky bar at the bottom on phones.
 - **Profile and settings sections** use a two-column row per section at ≥1024 px: the section title and a one-line description on the left (one third), the form on the right (two thirds, max 720 px). Each section saves on its own with a secondary "Save changes" button and an inline "Changes saved" confirmation.
-- **Exception:** the public marketing pages use a 1200 px page grid.
+- **Exceptions:** the public marketing pages use a 1200 px page grid. **Lesson screens use one centred column, 680 px wide**, for text, simulators, questions, the action bar and the answer feedback alike. A lesson is read top to bottom, one screen at a time, so the eye should move down, never across: don't put lesson text at the far left and the interactive part at the far right.
 - **Alignment:** text is left-aligned everywhere, empty states included, except the exam result moment.
 - **One primary action per screen**, placed bottom-right on desktop and as a full-width sticky button above the tab bar on mobile.
 
@@ -222,6 +223,8 @@ Use **Lucide** icons at 20 px (24 px on mobile tab bar), 1.75 stroke, `currentCo
 
 ### Illustration
 Simple line drawings in `--neutral-data` with one amber detail, used only for empty states and the Academy. No stock photos, no 3D, no people holding phones full of money.
+
+**Pip, the Academy mascot.** A rounded line-drawn figure whose antenna ends in an amber dot, the same dot as the range bar's estimate; that dot is the illustration's one amber detail. Pip appears in the lesson scene, a quiet `--surface` panel at the top of each lesson screen, standing beside **a line drawing of the current module's topic** (banknotes and arrows for exchange rates, candlesticks for candle lessons, a bank for central banks), so the picture always matches what's being taught. Poses follow the screen: wave (first screen), explain (reading), think (practice question), idea (takeaway), cheer (lesson complete; never confetti, never for money). Screens with a simulator or diagram leave the scene out so the interactive part has room. Every module needs a drawing (`src/features/academy/lesson/ModuleArt.tsx`; a test checks this). Scenes are decorative and hidden from screen readers.
 
 ---
 
@@ -347,6 +350,12 @@ Short blueprints for the core screens. Build them from §7 components.
 ```
 
 **Answer feedback:** after "Check", a bottom panel slides up: result word with icon ("Correct" / "Not quite"), one-sentence explanation, "Continue". The question stays visible above it.
+
+**Lesson screen (all widths):** the lesson hides the app shell. Top bar, aligned to the 680 px column: close (×), the level and module in caption size above the lesson title, and "2/5" in mono; under it, a thin full-width progress bar in `--accent`. Then the column: the lesson scene (Pip and the module drawing, §7), then the screen's blocks in the order they were written, lesson text at 18/30. Each new screen fades and lifts 8 px in 200 ms (opacity only with reduced motion). The action bar is fixed to the bottom and aligned to the same column: Back on the left, a "Press Enter to continue" hint on desktop, and the one primary action ("Check", "Continue" or "Finish lesson") on the right. Enter triggers the primary action. After a wrong answer the panel offers "Try again" (secondary) beside "Continue".
+
+**Lesson complete:** in the same column: the lesson scene with Pip cheering, "Lesson complete" (H1), the first-try score in words ("You answered 1 of 2 practice questions right on the first try."), the lesson's key takeaways, the next lesson as the primary action, then the sources. No confetti and no sound (§6).
+
+**Learn:** the curriculum path fills the left column (levels → modules → lessons; the current lesson's status dot in amber). Lessons open in order: a lesson unlocks when every earlier one is complete; locked lessons show a lock icon in `--text-subtle`, aren't links, and opening one by URL shows a locked screen pointing to the lesson to finish first. Modules without lessons yet collapse to one line marked "Being written"; levels not in the current phase show "Opens in phase N". The right column (sticky on desktop) holds "Up next" with the primary action, then progress per level as a thin bar with "3/12" in mono, then the level's reading list.
 
 **Journal list:** grouped by day; each row shows pair, direction, result in R (mono, signed, coloured), rule-followed icon with label, and a tilt tag if any. Floating "Log trade" button on mobile; `N` shortcut on desktop.
 

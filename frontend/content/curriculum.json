@@ -1,0 +1,318 @@
+{
+  "levels": [
+    {
+      "order": 1,
+      "slug": "foundations",
+      "title": "Foundations",
+      "phase": 1,
+      "reading": [
+        "babypips-pipsology"
+      ],
+      "modules": [
+        {
+          "order": 1,
+          "slug": "how-forex-works",
+          "title": "How forex works"
+        },
+        {
+          "order": 2,
+          "slug": "pairs-and-quotes",
+          "title": "Pairs and quotes"
+        },
+        {
+          "order": 3,
+          "slug": "pips-lots-leverage-margin",
+          "title": "Pips, lots, leverage and margin"
+        },
+        {
+          "order": 4,
+          "slug": "brokers-and-execution",
+          "title": "Brokers, execution and stop-outs",
+          "covers": "Brokers and execution models (dealing desk and no dealing desk), order types, slippage, margin calls and stop-outs, and negative balance protection."
+        },
+        {
+          "order": 5,
+          "slug": "trading-costs",
+          "title": "Spreads, commissions and swaps",
+          "covers": "Spreads, commissions and overnight swaps, including the Wednesday triple swap, and how costs add up across many trades."
+        },
+        {
+          "order": 6,
+          "slug": "gaps",
+          "title": "Weekend and news gaps",
+          "covers": "Weekend and news gaps, and why stop orders can fill well past their price when the market gaps."
+        },
+        {
+          "order": 7,
+          "slug": "sessions",
+          "title": "Market sessions",
+          "covers": "The Asia, London and New York sessions, their overlaps, and how activity and spreads change through the day."
+        },
+        {
+          "order": 8,
+          "slug": "why-traders-lose",
+          "title": "Why most traders lose",
+          "covers": "The evidence that most retail traders lose money, and the common causes: no tested edge, oversized risk, costs and behaviour."
+        },
+        {
+          "order": 9,
+          "slug": "scams-and-funding-risks",
+          "title": "Scams and funding risks",
+          "covers": "Signal sellers, \"account managers\", unregulated brokers and investment schemes, and how to check a firm with a regulator."
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "slug": "probability-and-risk",
+      "title": "Probability and risk",
+      "phase": 1,
+      "reading": [
+        "taleb-fooled-by-randomness"
+      ],
+      "modules": [
+        {
+          "order": 1,
+          "slug": "probability-thinking",
+          "title": "Thinking in probabilities"
+        },
+        {
+          "order": 2,
+          "slug": "randomness-and-statistics",
+          "title": "Randomness and statistics for traders",
+          "covers": "Coin-flip equity curves, why 30 trades prove nothing, and confidence ranges."
+        },
+        {
+          "order": 3,
+          "slug": "expectancy-and-r",
+          "title": "Expectancy and R-multiples"
+        },
+        {
+          "order": 4,
+          "slug": "position-sizing",
+          "title": "Position sizing"
+        },
+        {
+          "order": 5,
+          "slug": "drawdown-and-risk-of-ruin",
+          "title": "Drawdown and risk of ruin",
+          "covers": "Drawdown maths, losing streaks and risk of ruin."
+        },
+        {
+          "order": 6,
+          "slug": "risk-comfort",
+          "title": "Risk-comfort curves",
+          "covers": "Choosing a risk per trade you can live with by looking at the equity curves and drawdowns it produces."
+        },
+        {
+          "order": 7,
+          "slug": "realistic-returns",
+          "title": "Realistic returns",
+          "covers": "What returns are realistic for retail traders, and why big monthly return claims are a warning sign."
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "slug": "psychology",
+      "title": "Psychology",
+      "phase": 2,
+      "reading": [
+        "douglas-trading-in-the-zone"
+      ],
+      "modules": [
+        {
+          "order": 1,
+          "slug": "probabilistic-mindset",
+          "title": "Thinking in probabilities"
+        },
+        {
+          "order": 2,
+          "slug": "fear-and-greed",
+          "title": "Fear and greed"
+        },
+        {
+          "order": 3,
+          "slug": "revenge-trading",
+          "title": "Revenge trading"
+        },
+        {
+          "order": 4,
+          "slug": "routines",
+          "title": "Routines"
+        },
+        {
+          "order": 5,
+          "slug": "journaling",
+          "title": "Journaling"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "slug": "technical-analysis",
+      "title": "Technical analysis",
+      "phase": 2,
+      "reading": [
+        "babypips-pipsology",
+        "murphy-technical-analysis"
+      ],
+      "modules": [
+        {
+          "order": 1,
+          "slug": "market-structure",
+          "title": "Market structure"
+        },
+        {
+          "order": 2,
+          "slug": "support-and-resistance",
+          "title": "Support and resistance"
+        },
+        {
+          "order": 3,
+          "slug": "trends",
+          "title": "Trends"
+        },
+        {
+          "order": 4,
+          "slug": "price-action-and-candles",
+          "title": "Price action and candles"
+        },
+        {
+          "order": 5,
+          "slug": "indicators",
+          "title": "Indicators"
+        },
+        {
+          "order": 6,
+          "slug": "timeframes",
+          "title": "Timeframes"
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "slug": "fundamentals",
+      "title": "Fundamentals",
+      "phase": 2,
+      "reading": [
+        "fed-monetary-policy",
+        "ecb-monetary-policy",
+        "boe-monetary-policy",
+        "cbn-monetary-policy"
+      ],
+      "modules": [
+        {
+          "order": 1,
+          "slug": "interest-rates",
+          "title": "Interest rates"
+        },
+        {
+          "order": 2,
+          "slug": "central-banks",
+          "title": "Central banks"
+        },
+        {
+          "order": 3,
+          "slug": "economic-calendar",
+          "title": "The economic calendar"
+        },
+        {
+          "order": 4,
+          "slug": "news-risk",
+          "title": "News risk"
+        },
+        {
+          "order": 5,
+          "slug": "intermarket-links",
+          "title": "Intermarket links"
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "slug": "strategy-design",
+      "title": "Strategy design",
+      "phase": 2,
+      "reading": [
+        "aronson-ebta"
+      ],
+      "modules": [
+        {
+          "order": 1,
+          "slug": "ideas-to-rules",
+          "title": "From ideas to rules"
+        },
+        {
+          "order": 2,
+          "slug": "mechanical-vs-discretionary",
+          "title": "Mechanical and discretionary strategies"
+        },
+        {
+          "order": 3,
+          "slug": "backtesting-and-hindsight",
+          "title": "Backtesting methods and hindsight bias",
+          "covers": "Manual and automated backtesting methods, and hindsight bias in replay."
+        },
+        {
+          "order": 4,
+          "slug": "strategy-costs",
+          "title": "Costs"
+        },
+        {
+          "order": 5,
+          "slug": "overfitting",
+          "title": "Overfitting"
+        },
+        {
+          "order": 6,
+          "slug": "sample-size",
+          "title": "Sample size"
+        },
+        {
+          "order": 7,
+          "slug": "out-of-sample-testing",
+          "title": "Out-of-sample testing"
+        }
+      ],
+      "reading_note": "Chapters 1 to 6"
+    },
+    {
+      "order": 7,
+      "slug": "advanced",
+      "title": "Advanced",
+      "phase": 2,
+      "reading": [
+        "schwager-market-wizards"
+      ],
+      "modules": [
+        {
+          "order": 1,
+          "slug": "multi-timeframe-analysis",
+          "title": "Multi-timeframe analysis"
+        },
+        {
+          "order": 2,
+          "slug": "currency-exposure",
+          "title": "Currency exposure and correlated positions"
+        },
+        {
+          "order": 3,
+          "slug": "trade-management",
+          "title": "Trade management"
+        },
+        {
+          "order": 4,
+          "slug": "prop-firm-rules",
+          "title": "Prop firm rules and firm risk",
+          "covers": "How prop firm challenges work: profit targets, daily and maximum drawdown limits, consistency and news rules, and the risk that a firm closes or refuses payouts."
+        },
+        {
+          "order": 5,
+          "slug": "performance-review",
+          "title": "Performance review"
+        }
+      ]
+    }
+  ]
+}

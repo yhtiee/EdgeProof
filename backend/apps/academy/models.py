@@ -22,22 +22,26 @@ class Publishable(BaseModel):
 
 
 class Level(Publishable):
-    pass
+    slug = models.SlugField(max_length=80, unique=True)
+    phase = models.PositiveSmallIntegerField(default=1)
 
 
 class Module(Publishable):
     level = models.ForeignKey(Level, on_delete=models.CASCADE, related_name="modules")
+    slug = models.SlugField(max_length=80, unique=True)
 
 
 class Lesson(Publishable):
     """
     Lesson metadata. Lesson *content* is Markdown in the frontend repo,
-    compiled to static JSON (spec §5); `slug` links the two.
+    compiled to static JSON (spec §5); `slug` links the two. Rows are written
+    by `manage.py sync_curriculum`, never edited by hand.
     """
 
     module = models.ForeignKey(Module, on_delete=models.CASCADE, related_name="lessons")
     slug = models.SlugField(max_length=80, unique=True)
-    block_count = models.PositiveSmallIntegerField(default=0)
+    block_count = models.PositiveSmallIntegerField(default=0)  # screens in the compiled lesson
+    minutes = models.PositiveSmallIntegerField(default=5)
 
 
 class LessonBlock(BaseModel):
@@ -129,7 +133,7 @@ class ExamAttempt(OwnedModel):
 
 class LessonProgress(OwnedModel):
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name="+")
-    completed_blocks = models.JSONField(default=list)  # block orders; AC-10 saves per block
+    completed_blocks = models.JSONField(default=list)  # screen indexes; AC-10 saves per screen
     completed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta(OwnedModel.Meta):

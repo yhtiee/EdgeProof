@@ -64,10 +64,19 @@ class SubmitSerializer(serializers.Serializer):
 
 
 class LessonProgressSerializer(serializers.ModelSerializer):
+    lesson = serializers.SlugRelatedField(slug_field="slug", read_only=True)
+    completed_blocks = serializers.ListField(child=serializers.IntegerField(min_value=0), max_length=200)
+
     class Meta:
         model = LessonProgress
         fields = ["lesson", "completed_blocks", "completed_at"]
         read_only_fields = ["lesson", "completed_at"]
+
+    def validate_completed_blocks(self, value):
+        lesson = self.context.get("lesson")
+        if lesson and any(b >= lesson.block_count for b in value):
+            raise serializers.ValidationError(f"This lesson has {lesson.block_count} screens.")
+        return value
 
 
 class QuestionReportSerializer(serializers.ModelSerializer):
