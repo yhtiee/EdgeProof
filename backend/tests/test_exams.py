@@ -186,3 +186,16 @@ def test_gates_stay_closed_when_debug_is_off():
             else:
                 os.environ[k] = v
         importlib.reload(base)
+
+
+def test_progress_path_reflects_gates_and_levels(client):
+    data = client.get("/api/v1/me/progress").json()
+    keys = [s["key"] for s in data["steps"]]
+    assert keys == ["gate-1", "level-1", "level-2", "gate-2", "lab", "gate-3", "gate-4"]
+    level1 = data["steps"][1]
+    assert level1["lessons_total"] == 3 and level1["lessons_done"] == 0 and level1["next"]["key"] == "a1"
+    assert data["steps"][0]["done"] and data["current"] == "level-1"  # the fixture grants Gate 1
+    # A placement pass counts the whole level as done.
+    take(client, "p-1")
+    level1 = client.get("/api/v1/me/progress").json()["steps"][1]
+    assert level1["done"] and level1["placed"] and level1["lessons_done"] == 3

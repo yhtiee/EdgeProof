@@ -5,6 +5,7 @@ import { Banner, DevGateNote, buttonClass } from '../../components/ui'
 import { useSession } from '../../lib/session'
 import { lessonsInOrder, useCurriculum, useLesson } from './content'
 import { LessonPlayer, LessonScene } from './lesson/LessonPlayer'
+import { TutorButton } from './lesson/Tutor'
 import { useLessonProgress } from './progress'
 import { useMyExams } from './exams'
 import { academyPath, itemId, pathAccess, pathTo } from './sequence'
@@ -101,6 +102,7 @@ export default function LessonPage() {
       exitTo="/learn"
       exitLabel="Back to Learn"
       next={next}
+      topAction={<TutorButton lesson={lesson.data.slug} title={lesson.data.title} />}
       notice={
         access?.wouldLock && access.blocker ? (
           <DevGateNote>

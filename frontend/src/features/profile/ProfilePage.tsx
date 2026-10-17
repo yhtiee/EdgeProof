@@ -6,6 +6,7 @@ import { Banner, Button, Field } from '../../components/ui'
 import { ApiError, api } from '../../lib/api/client'
 import { ME_KEY, useSession, type Me } from '../../lib/session'
 import { PLAN_KEY, PROFILE_KEY, getProfile } from '../onboarding/api'
+import { ProgressSection } from './ProgressSection'
 import type { Profile } from '../onboarding/constants'
 import {
   ExperienceFields,
@@ -40,8 +41,9 @@ export default function ProfilePage() {
 
   return (
     <div>
-      <PageHeader title="Profile" description="Your details and the answers your plan is built from." />
+      <PageHeader title="Profile" description="Your progress, your details and the answers your plan is built from." />
       <div className="grid gap-12">
+        <ProgressSection />
         <PersonalSection me={session.me} />
         <StudySection me={session.me} profile={profile.data} />
         <BackgroundSection profile={profile.data} />

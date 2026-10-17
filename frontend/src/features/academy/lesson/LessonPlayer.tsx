@@ -31,6 +31,8 @@ type Props = {
   visitor?: boolean
   /** Shown above the first screen, e.g. the development-build gate note. */
   notice?: ReactNode
+  /** Extra control in the top bar, e.g. "Ask the tutor" for signed-in learners. */
+  topAction?: ReactNode
 }
 
 type Feedback = { correct: boolean } | null
@@ -46,7 +48,7 @@ export function LessonPlayer(props: Props) {
   )
 }
 
-function Player({ lesson, context, startAt = 0, onScreenDone, exitTo, exitLabel, next, visitor, notice }: Props) {
+function Player({ lesson, context, startAt = 0, onScreenDone, exitTo, exitLabel, next, visitor, notice, topAction }: Props) {
   const total = lesson.screens.length
   const [index, setIndex] = useState(() => Math.min(startAt, total - 1))
   const [finished, setFinished] = useState(false)
@@ -118,7 +120,7 @@ function Player({ lesson, context, startAt = 0, onScreenDone, exitTo, exitLabel,
 
   return (
     <div className="min-h-dvh bg-bg">
-      <TopBar lesson={lesson} context={context} index={index} exitTo={exitTo} exitLabel={exitLabel} />
+      <TopBar lesson={lesson} context={context} index={index} exitTo={exitTo} exitLabel={exitLabel} action={topAction} />
 
       <main className="px-4 pb-48 pt-8 md:px-6 md:pt-12">
         {notice && index === 0 && <div className={`${STAGE} mb-6`}>{notice}</div>}
@@ -239,7 +241,9 @@ function TopBar({
   exitTo,
   exitLabel,
   done,
+  action,
 }: {
+  action?: ReactNode
   lesson: Lesson
   context?: string
   index: number
@@ -263,6 +267,7 @@ function TopBar({
           {context && <p className="truncate text-caption text-subtle">{context}</p>}
           <p className="truncate text-small font-semibold">{lesson.title}</p>
         </div>
+        {action}
         <span className="shrink-0 pr-2 font-mono text-caption text-muted md:pr-0" aria-live="polite">
           {done ? 'Done' : `${index + 1}/${total}`}
         </span>

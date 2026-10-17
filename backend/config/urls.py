@@ -5,11 +5,15 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
 from apps.academy import views as academy
-from apps.accounts import auth_views, views as accounts
+from apps.accounts import auth_views
+from apps.accounts import views as accounts
+from apps.ai import views as ai
 from apps.analytics import views as analytics
-from apps.core import uploads, views as core
+from apps.core import uploads
+from apps.core import views as core
 from apps.discipline import views as discipline
 from apps.gates import views as gates
+from apps.scanner import views as scanner
 from apps.strategy import views as strategy
 from apps.testing import views as testing
 
@@ -39,6 +43,7 @@ api_v1 = [
     path("me/security/logout-all", auth_views.LogoutAllView.as_view()),
     path("me/gates", gates.MyGatesView.as_view()),
     path("me/gate-passes", gates.MyGatePassesView.as_view()),
+    path("me/progress", gates.MyProgressView.as_view()),
     # Academy
     path("levels", academy.LevelListView.as_view()),
     path("lessons/<slug:slug>/progress", academy.LessonProgressView.as_view()),
@@ -60,6 +65,21 @@ api_v1 = [
     path("versions/<uuid:pk>/gate-3", strategy.Gate3View.as_view()),
     path("versions/<uuid:pk>/examples", strategy.ExampleListView.as_view()),
     path("examples/<uuid:pk>", strategy.ExampleView.as_view()),
+    # AI (spec §10)
+    path("me/settings/ai", ai.AISettingsView.as_view()),
+    path("ai/tutor/status", ai.TutorStatusView.as_view()),
+    path("ai/tutor", ai.TutorAskView.as_view()),
+    # Fundamental Bias Scanner (signed-in users, no gate)
+    path("scanner/pairs", scanner.PairsView.as_view()),
+    path("scanner/pairs/<str:symbol>", scanner.PairDetailView.as_view()),
+    path("scanner/pairs/<str:symbol>/history", scanner.PairHistoryView.as_view()),
+    path("scanner/currencies", scanner.CurrenciesView.as_view()),
+    path("scanner/status", scanner.StatusView.as_view()),
+    path("scanner/evidence", scanner.EvidenceView.as_view()),
+    path("scanner/factor/<str:subject>/<str:factor>", scanner.FactorEvidenceView.as_view()),
+    path("scanner/explain/status", scanner.ExplainStatusView.as_view()),
+    path("scanner/explain", scanner.ExplainView.as_view()),
+    path("scanner/calendar/<str:subject>", scanner.CalendarView.as_view()),
     # Uploads
     path("uploads/presign", uploads.PresignView.as_view()),
     path("uploads/<path:key>/local", uploads.LocalUploadView.as_view()),
@@ -74,6 +94,7 @@ api_v1 = [
 urlpatterns = [
     path("api/v1/", include(api_v1)),
     path("internal/jobs/sweep", core.sweep),
+    path("internal/scanner/<str:name>", scanner.scheduled_job),
     path("healthz", core.health),
     path(settings.ADMIN_URL, admin.site.urls),
 ]

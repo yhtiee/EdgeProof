@@ -16,3 +16,6 @@ REST_FRAMEWORK = {  # noqa: F405
 }
 SECURE_SSL_REDIRECT = False
 OPEN_GATES = False  # tests always see production gating
+
+# No real AI calls in tests: providers are faked per test.
+AI = {**AI, "provider": "gemini", "fallback": "groq", "gemini_key": "test", "groq_key": "test"}  # noqa: F405

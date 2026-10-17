@@ -44,6 +44,7 @@ class Job(OwnedModel):
         VERDICT = "verdict"
         AI_REVIEW = "ai_review"
         DELETE_ACCOUNT = "delete_account"
+        SCANNER = "scanner"
 
     class Status(models.TextChoices):
         QUEUED = "queued"

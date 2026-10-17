@@ -10,7 +10,7 @@
 
 | Phase | What it delivers | Status |
 | --- | --- | --- |
-| **1. Learn and record (MVP)** | Accounts, onboarding, the Academy with exams, practice journal and metrics, rulebook builder, AI tutor | 🟡 Nearly complete: the **AI tutor**, the **Progress page**, and account security tasks (email verification, password reset, change email or password) remain |
+| **1. Learn and record (MVP)** | Accounts, onboarding, the Academy with exams, practice journal and metrics, rulebook builder, AI tutor, market scanner | 🟡 Nearly complete: account security tasks (email verification, password reset, change email or password) remain |
 | **2. Test and validate** | Test runs and data splits, imports, edge verdict, Gates 3–4, forward testing, discipline engine, AI advisers, chart drills, timetable, notifications | 🟡 A few items done early (Gate 3, discretionary label, all 7 levels of content, extra simulators); the rest not started |
 | **3. Fund and scale** | Micro-live step, prop firm directory and tools, funded ladder, money tracker, scenario simulator | ⬜ Not started (blocked on a written legal opinion) |
 | **4. Community and trust** | Cohorts, accountability partners, mentor reviews, process leaderboards, verified records, outcome reports | ⬜ Not started (defined after Phase 3) |
@@ -37,7 +37,7 @@ Build order in the spec: auth and onboarding → lessons and simulators → Leve
 | — | Google sign-in | 🟡 | API endpoint exists; no button in the app yet |
 | — | Email verification and password reset | ⬜ | Needs an email provider (spec: a transactional provider's free tier) |
 | AS-1 | Change password, change email, link or unlink Google, log out of all devices | 🟡 | Log out of all devices done; the rest not built |
-| AS-2 | Settings: timezone, weekly hours, notification preferences, data-saver, AI on or off | 🟡 | Timezone, weekly hours (profile) and data-saver done; notification preferences and AI switch wait for those features |
+| AS-2 | Settings: timezone, weekly hours, notification preferences, data-saver, AI on or off | 🟡 | Timezone, weekly hours (profile), data-saver and the AI switch done; notification preferences wait for notifications. Settings open from the account menu |
 | AS-3 | Account deletion: 7-day soft delete, then hard delete | 🟡 | Soft-delete request and "sign in to cancel" done; the hard-delete job and the button in the app aren't |
 | AS-4 | "I am 18 or older" at signup | ✅ | |
 | — | Profile section (names, onboarding answers) | ✅ | |
@@ -81,7 +81,7 @@ Build order in the spec: auth and onboarding → lessons and simulators → Leve
 | 2 | Testing in the Strategy Lab | ✅ | Phase-aware: all published level exams (now all 7), or placement |
 | 3 | Test runs (per strategy version) | ✅ ⏩ | Clarity checks by code; locks the version |
 | — | Gates framework: server enforcement, audit log, versioned config | ✅ | |
-| — | **Progress page** showing the real path and gate criteria | 🟡 | Page exists with placeholder content; needs live data |
+| — | Progress path showing the real path and gate criteria | ✅ | Lives in the Profile page ("Your progress"), computed by the server (`GET /me/progress`); the old `/progress` link still opens it; the Scanner took its sidebar slot |
 
 ### Practice journal and core metrics (§7, §8)
 
@@ -119,13 +119,26 @@ Design document: `docs/strategy-lab/rulebook-builder.md`.
 | SL-11 | No copyable templates | ✅ | |
 | — | Drafting opens after the Level 6 strategy lessons | ✅ | Founder decision (the spec said after Level 2) |
 
+### Market scanner (founder addition)
+
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Fundamental Bias Scanner | ✅ | 28 pairs and 8 currencies scored −10…+10 from COT, rates, inflation, growth, labour, business confidence, trend and retail sentiment. Open to every signed-in user (no gate). Build notes: `docs/scanner/fundamental-bias-scanner.md` |
+| — Data pipeline | ✅ | CFTC, BIS, OECD, Eurostat, FRED, SNB, DBnomics, Twelve Data, Myfxbook; `manage.py scanner …`; scheduled by `.github/workflows/scanner.yml` → `POST /internal/scanner/<job>` (HMAC) |
+| — Screens | ✅ | Scanner tab in the nav (replaces Progress): Pairs rankings, Currencies board, Evidence; pair scorecard with bias history |
+| — Evidence | ✅ | 3-year weekly replay with hit rates by label; shown as it is |
+| — Factor evidence | ✅ | "Evidence" on every factor: recent official prints (rates as decisions), link to the original release, central bank publications (RSS from 7 banks; the RBA blocks automated requests) and scheduled releases from the Forex Factory weekly calendar (cached daily, linked back) |
+| — Explain it simply | ✅ | AI explanation for a pair, a currency or one factor, at a reading age of about 12, built only from the stored data and publications; tutor guardrails, shared cache per daily run, 20 new explanations per user per day (`AI_SCANNER_DAILY_LIMIT`) |
+| — Japan CPI | 🟡 | No current free source (DBnomics stale since mid-2025), so JPY inflation shows as stale. Needs an e-Stat app ID (`ESTAT_APP_ID`) |
+
 ### AI tutor (§10)
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| **Academy tutor**: ask about the current lesson; streamed explanation plus a follow-up practice question | ⬜ | **Next to build.** Daily per-user limit, answers cached by lesson and question, monthly spending cap and circuit breaker, 45 s timeout, swappable provider |
-| Guardrails: no signals or predictions; user text treated as data; server check for signal-like language and invented numbers; sanitised output | ⬜ | Built with the tutor |
-| Privacy: names and emails masked; consent per feature; AI can be switched off | ⬜ | Built with the tutor |
+| **Academy tutor**: ask about the current lesson; streamed explanation plus a follow-up practice question | ✅ | "Ask the tutor" in every lesson. 20 questions a day per user, answers cached by lesson and question, monthly circuit breaker, 45 s timeout |
+| Providers: Gemini and Groq, switchable | ✅ | `AI_PROVIDER` (main) and `AI_FALLBACK_PROVIDER` in `backend/.env`; each tries its model list in order, then the other provider |
+| Guardrails: no signals or predictions; user text treated as data; server check for signal-like language and invented numbers; sanitised output | ✅ | One rewrite, then a safe refusal; output rendered as safe Markdown (no HTML) |
+| Privacy: names and emails masked; consent per feature; AI can be switched off | ✅ | Consent before the first answer; AI switch in Settings |
 
 ### Platform (§13, §16)
 
@@ -251,8 +264,6 @@ Defined in detail after Phase 3.
 
 ## What's next
 
-1. **Progress page with live data** (finishes the Phase 1 gates item; small).
-2. **AI tutor** (the last Phase 1 build-order item).
-3. **Phase 1 account security:** email verification, password reset, change email or password, account deletion in the app.
-4. **Launch groundwork:** deploy, CI, backups; then test Level 1 with 3–5 outside beginners.
-5. **Phase 2**, starting with test runs and data splits (BT-1–BT-3), then the edge verdict and Gate 4.
+1. **Phase 1 account security:** email verification, password reset, change email or password, account deletion in the app.
+2. **Launch groundwork:** deploy, CI, backups; then test Level 1 with 3–5 outside beginners.
+3. **Phase 2**, starting with test runs and data splits (BT-1–BT-3), then the edge verdict and Gate 4.

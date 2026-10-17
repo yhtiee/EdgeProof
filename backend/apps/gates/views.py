@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import GatePass
+from .progress import progress
 from .services import evaluate_gate_2, has_gate
 
 
@@ -45,3 +46,10 @@ class MyGatePassesView(APIView):
     def get(self, request):
         passes = GatePass.objects.owned_by(request.user).order_by("-passed_at")
         return Response(GatePassSerializer(passes, many=True).data)
+
+
+class MyProgressView(APIView):
+    """GET /me/progress: the whole path (gates, levels, Lab) with what's done and what's left."""
+
+    def get(self, request):
+        return Response(progress(request.user))

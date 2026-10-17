@@ -12,12 +12,20 @@ import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # Local development: read backend/.env if present. Real environment variables win.
+# The dev server's auto-reloader copies the parent's environment into each new
+# process, so values that came from .env are remembered and refreshed from the
+# file on every reload; otherwise an edited .env would keep its old values.
 _dotenv = BASE_DIR / ".env"
+_DOTENV_KEYS = "EDGEPROOF_DOTENV_KEYS"
 if _dotenv.exists():
+    _from_file = set(filter(None, os.environ.get(_DOTENV_KEYS, "").split(",")))
     for _line in _dotenv.read_text(encoding="utf-8").splitlines():
         _key, _sep, _value = _line.strip().partition("=")
-        if _sep and not _key.startswith("#"):
-            os.environ.setdefault(_key.strip(), _value.strip())
+        _key = _key.strip()
+        if _sep and _key and not _key.startswith("#") and (_key not in os.environ or _key in _from_file):
+            os.environ[_key] = _value.strip()
+            _from_file.add(_key)
+    os.environ[_DOTENV_KEYS] = ",".join(sorted(_from_file))
 
 
 def env(name: str, default: str | None = None) -> str | None:
@@ -81,6 +89,7 @@ INSTALLED_APPS = [
     "apps.discipline",
     "apps.ladder",
     "apps.ai",
+    "apps.scanner",
     "apps.audit",
 ]
 
@@ -270,13 +279,37 @@ R2 = {
 }
 
 # --- AI (spec §10) ----------------------------------------------------------
+# Compiled lesson JSON for the tutor's context: local files in development,
+# the frontend's /lessons URL when deployed (the backend host has no frontend files).
+LESSONS_DIR = env("LESSONS_DIR", str(BASE_DIR.parent / "frontend" / "public" / "lessons"))
+LESSONS_URL = env("LESSONS_URL", "")
 AI = {
+    # Main provider: "gemini", "groq" or "disabled". The other can be the fallback.
     "provider": env("AI_PROVIDER", "disabled"),
-    "api_key": env("AI_API_KEY", ""),
-    "model": env("AI_MODEL", ""),
+    "fallback": env("AI_FALLBACK_PROVIDER", ""),
+    "gemini_key": env("GEMINI_API_KEY", "").strip(),
+    "groq_key": env("GROQ_API_KEY", "").strip(),
+    # Tried in order when one is unavailable or over quota.
+    "gemini_models": env_list("AI_GEMINI_MODELS", "gemini-3.5-flash,gemini-flash-latest,gemini-2.5-flash"),
+    "groq_models": env_list("AI_GROQ_MODELS", "openai/gpt-oss-120b,openai/gpt-oss-20b,qwen/qwen3.8-27b"),
     "timeout_seconds": 45,
     "daily_user_limit": int(env("AI_DAILY_USER_LIMIT", "20")),
+    # New scanner explanations per user per day (cached ones are free).
+    "scanner_daily_limit": int(env("AI_SCANNER_DAILY_LIMIT", "20")),
+    # Internal circuit breaker, below the spending cap set at the provider (spec §10).
     "monthly_circuit_breaker_usd": float(env("AI_MONTHLY_BREAKER_USD", "20")),
+    # Estimated price per million tokens (input, output), for the breaker and the cost log.
+    "price_per_million": {"gemini": (0.30, 2.50), "groq": (0.15, 0.75)},
+}
+
+# --- Fundamental Bias Scanner (docs/scanner/fundamental-bias-scanner.md) -------
+SCANNER = {
+    "fred_key": env("FRED_API_KEY", "").strip(),
+    # Accept both spellings (the local .env uses TWELEVEDATA_API_KEY).
+    "twelvedata_key": (env("TWELVEDATA_API_KEY", "") or env("TWELEVEDATA_API_KEY", "")).strip(),
+    "myfxbook_email": env("MYFXBOOK_EMAIL", "").strip(),
+    "myfxbook_password": env("MYFXBOOK_PASSWORD", "").strip(),
+    "history_years": int(env("SCANNER_HISTORY_YEARS", "3")),
 }
 
 # --- Email ------------------------------------------------------------------

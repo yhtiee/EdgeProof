@@ -1,0 +1,45 @@
+# Fundamental Bias Scanner jobs (docs/scanner/fundamental-bias-scanner.md). Times are the
+# spec's WAT schedule in UTC (WAT = UTC+1). Each call is HMAC-signed like the sweep and
+# returns at once; the API runs the job in the background and records it as a Job.
+name: scanner
+on:
+  schedule:
+    - cron: "30 22 * * *"   # fetch_prices    23:30 WAT daily
+    - cron: "40 22 * * *"   # fetch_sentiment 23:40 WAT daily
+    - cron: "0 5 * * *"     # fetch_macro     06:00 WAT daily
+    - cron: "0 1 * * 6"     # fetch_cot       Saturday 02:00 WAT (weekly snapshot)
+    - cron: "0 6 * * *"     # check_health    07:00 WAT daily
+    - cron: "30 5 * * *"    # fetch_news      06:30 WAT daily (central bank feeds + Forex Factory calendar, once a day)
+  workflow_dispatch:
+    inputs:
+      job: { description: "Job to run", required: true, default: "run_scoring" }
+jobs:
+  call:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Pick the job for this schedule
+        id: pick
+        run: |
+          case "${{ github.event.schedule }}" in
+            "30 22 * * *") echo "job=fetch_prices" >> "$GITHUB_OUTPUT" ;;
+            "40 22 * * *") echo "job=fetch_sentiment" >> "$GITHUB_OUTPUT" ;;
+            "0 5 * * *")   echo "job=fetch_macro" >> "$GITHUB_OUTPUT" ;;
+            "0 1 * * 6")   echo "job=fetch_cot" >> "$GITHUB_OUTPUT" ;;
+            "0 6 * * *")   echo "job=check_health" >> "$GITHUB_OUTPUT" ;;
+            "30 5 * * *")  echo "job=fetch_news" >> "$GITHUB_OUTPUT" ;;
+            *)             echo "job=${{ github.event.inputs.job }}" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - name: Call the API (retries while a sleeping host wakes)
+        env:
+          SECRET: ${{ secrets.SWEEP_HMAC_SECRET }}
+          BASE: ${{ secrets.API_BASE_URL }}
+        run: |
+          for attempt in 1 2 3; do
+            TS=$(date +%s)
+            SIG=$(printf '%s.' "$TS" | openssl dgst -sha256 -hmac "$SECRET" -hex | awk '{print $2}')
+            if curl -fsS -X POST "$BASE/internal/scanner/${{ steps.pick.outputs.job }}" \
+                 -H "X-Sweep-Timestamp: $TS" -H "X-Sweep-Signature: $SIG" --max-time 70; then exit 0; fi
+            sleep 30
+          done
+          exit 1

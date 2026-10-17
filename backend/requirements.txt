@@ -17,3 +17,4 @@ whitenoise>=6.9
 sentry-sdk>=2.30
 tzdata>=2025.2  # IANA timezones for zoneinfo on Windows and slim images
 jsonschema>=4.23  # rulebook schema validation (Strategy Lab)
+certifi>=2024.8  # TLS roots for the scanner's data sources

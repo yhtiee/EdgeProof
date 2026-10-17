@@ -16,8 +16,8 @@ const SECTION: Record<string, string> = {
   '/learn': 'Learn',
   '/journal': 'Journal',
   '/lab': 'Strategy Lab',
-  '/progress': 'Progress',
-  '/more': 'Settings',
+  '/scanner': 'Scanner',
+  '/settings': 'Settings',
   '/profile': 'Profile',
 }
 
@@ -100,7 +100,7 @@ export function AppHeader() {
                   </Popover.Close>
                   <Popover.Close asChild>
                     <Link
-                      to="/more"
+                      to="/settings"
                       className="flex min-h-11 items-center gap-3 rounded-sm px-3 text-small hover:bg-surface"
                     >
                       <Settings className="size-5 text-muted" strokeWidth={1.75} aria-hidden="true" />

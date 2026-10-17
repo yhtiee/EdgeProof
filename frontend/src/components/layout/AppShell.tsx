@@ -1,19 +1,19 @@
 import { NavLink, Outlet } from 'react-router'
-import { BookOpen, FlaskConical, Menu, NotebookPen, Route } from 'lucide-react'
+import { BookOpen, FlaskConical, NotebookPen, Radar } from 'lucide-react'
 import { ServerStatusBanner } from '../ui'
 import { AppHeader } from './AppHeader'
 import { Logo } from './Logo'
 
 /**
- * App shell (DESIGN.md §5): five destinations. Bottom tab bar on mobile,
+ * App shell (DESIGN.md §5): four destinations; settings live in the account menu. Bottom tab bar on mobile,
  * left sidebar at 1024 px and up.
  */
 const NAV = [
   { to: '/learn', label: 'Learn', icon: BookOpen },
   { to: '/journal', label: 'Journal', icon: NotebookPen },
   { to: '/lab', label: 'Lab', icon: FlaskConical },
-  { to: '/progress', label: 'Progress', icon: Route },
-  { to: '/more', label: 'More', icon: Menu },
+  // Progress lives in the profile; the scanner took its slot (docs/scanner §5).
+  { to: '/scanner', label: 'Scanner', icon: Radar },
 ] as const
 
 export function AppShell() {
@@ -65,7 +65,7 @@ export function AppShell() {
         aria-label="Main"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
-        <ul className="grid grid-cols-5">
+        <ul className="grid" style={{ gridTemplateColumns: `repeat(${NAV.length}, minmax(0, 1fr))` }}>
           {NAV.map(({ to, label, icon: Icon }) => (
             <li key={to}>
               <NavLink

@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router'
+import { createBrowserRouter, redirect } from 'react-router'
 import { AppShell } from '../components/layout/AppShell'
 import { RequireOnboarded, RequireOnboarding } from './guards'
 
@@ -42,8 +42,21 @@ export const router = createBrowserRouter([
           { path: '/lab', lazy: page(() => import('../features/strategy/LabPage')) },
           { path: '/lab/:strategyId', lazy: page(() => import('../features/strategy-lab/StrategyPage')) },
           { path: '/lab/:strategyId/v/:number/:step', lazy: page(() => import('../features/strategy-lab/BuilderPage')) },
-          { path: '/progress', lazy: page(() => import('../features/progress/ProgressPage')) },
-          { path: '/more', lazy: page(() => import('../features/settings/MorePage')) },
+          // Fundamental Bias Scanner: open to every signed-in learner, no gate (docs/scanner).
+          {
+            path: '/scanner',
+            lazy: page(() => import('../features/scanner/ScannerLayout')),
+            children: [
+              { index: true, lazy: page(() => import('../features/scanner/PairsPage')) },
+              { path: 'currencies', lazy: page(() => import('../features/scanner/CurrenciesPage')) },
+              { path: 'evidence', lazy: page(() => import('../features/scanner/EvidencePage')) },
+            ],
+          },
+          { path: '/scanner/:symbol', lazy: page(() => import('../features/scanner/PairPage')) },
+          // Progress is a section of the profile; old links still land there.
+          { path: '/progress', loader: () => redirect('/profile#progress') },
+          { path: '/settings', lazy: page(() => import('../features/settings/MorePage')) },
+          { path: '/more', loader: () => redirect('/settings') },
           { path: '/profile', lazy: page(() => import('../features/profile/ProfilePage')) },
         ],
       },

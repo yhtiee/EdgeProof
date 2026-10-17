@@ -145,7 +145,7 @@ A 4 px base. Allowed steps: `4, 8, 12, 16, 24, 32, 48, 64, 96`. Use Tailwind's d
 
 ### Layout
 - **Mobile first.** Design at 360 px, then 768 px and 1280 px. Gutters: 16 px mobile, 24 px tablet, 32 px desktop.
-- **App shell:** bottom tab bar on mobile (Learn, Journal, Lab, Progress, More); left sidebar on desktop (≥1024 px). Five destinations maximum.
+- **App shell:** bottom tab bar on mobile (Learn, Journal, Lab, Scanner); left sidebar on desktop (≥1024 px). Five destinations maximum. Settings live in the account menu. Progress is a section of the Profile ("Your progress").
 - **App header:** a sticky bar across the top of the content area, 56 px on mobile and 64 px on desktop, on `--surface` with a bottom `--border`. Left: the logo on mobile; on desktop, the current section as a quiet label (Body small, 600, `--text-muted`), because the sidebar already carries the logo and the page carries its own H1. Right: a secondary "Log trade" button (tablet and up), notifications and the account menu as 44 px icon buttons with `aria-label`s. The header never uses amber, never shows a red badge and never repeats the page title at H1 size.
 - **Content width: fill the space, don't centre a column.** App screens use the full width of the content area, left-aligned, inside the standard gutters. Never wrap a screen in a centred `max-width` container with empty space on both sides: on desktop that pushes everything into one long column and causes needless scrolling. Use the width instead: at ≥1024 px, put related parts side by side in a two-column grid (for example a lesson's explanation beside its simulator, a progress path beside the current gate's criteria, or a form beside its live preview).
 - **Measure still applies to text, not to containers.** Paragraphs keep `max-width: 68ch` (lessons) or about 60ch (descriptions) on the text element itself, so lines stay readable while the layout uses the full width.
@@ -220,6 +220,10 @@ Build these once in `src/components/ui/` and reuse them. Every component needs d
 | Step rail | Strategy Lab builder (desktop): numbered steps with a status icon (passes ✓ / fails !), the current step on `--raised`. On mobile it becomes a "Step 3 of 11 · Setup" button that opens the list in a bottom sheet. |
 | Condition card | One rule: its plain-language sentence as the title (live), the chart select, then parameters in a 2-column grid (1 column at 360 px). Border turns `--danger` only while a check on it fails. |
 | Annotation overlay | Arrows and boxes in `--accent` over an example screenshot, stored in 0–1 coordinates. Optional and decorative; the required note carries the meaning. |
+| Bias label chip | Scanner: five labels from the gain/loss tokens, always with the word. Very Bullish = solid `--gain`; Bullish = `--gain` tint; Neutral = `--neutral-data` tint; Bearish = `--loss` tint; Very Bearish = solid `--loss`; Insufficient data = dashed outline. Colour-blind mode carries over. |
+| Score bar | Scanner: diverging bar from −10 to +10 with a marked zero line; the fill grows from zero in the label's colour. Score beside it in mono with a real minus sign. |
+| Evidence sheet | Scanner: opened from "Evidence" under a factor name. Bottom sheet on phones, side sheet on desktop: recent official prints, link to the original release, central bank publications and scheduled releases, with "Explain it simply" at the top. |
+| Explain panel | AI explanation at a reading age of about 12. Secondary button (never amber) with a sparkle icon; streams into a quiet `--bg` panel labelled "Explained simply", footer: "Written by AI from the data on this page. It can make mistakes and is not advice." |
 | Dev gate note | Development builds only: a dashed `--border-control` note with an open-lock icon, "Open for development. When deployed, …", wherever a deployed build would lock. Compact form: "Locked when deployed" caption in rows. |
 
 ### Iconography
@@ -382,6 +386,8 @@ Short blueprints for the core screens. Build them from §7 components.
 **Verdict:** verdict name and one-sentence summary at the top; range bars for expectancy and drawdown; the conditions as a pass/fail checklist; "What this means" in plain words; one next action ("Start forward test" or "Back to the Lab").
 
 **Progress:** vertical progress path of levels and gates, current position in amber, each gate showing its criteria checklist.
+
+**Scanner:** tabs Pairs, Currencies, Evidence. Pairs rows: rank, pair (mono), score bar, score, label chip, week-on-week arrow, factors agreeing; on phones the row stacks into two lines. The pair scorecard puts the label and score first, then a plain summary, then factor rows (a table from 768 px, stacked cards below) with reading, period, source, stale badge and effect on the pair. Every factor name opens "what this measures" with a link to its lesson. Bias history is two stacked charts on one time axis (score with label bands, then weekly close), never two y-axes. Every scanner screen ends with "Last updated" and "Educational analysis of fundamentals, not a trade signal."
 
 ---
 
