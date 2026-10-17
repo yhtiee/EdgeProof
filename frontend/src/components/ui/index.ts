@@ -1,6 +1,7 @@
 export { Banner } from './Banner'
 export { Button, buttonClass } from './Button'
 export { CheckboxRow } from './CheckboxRow'
+export { DevGateNote } from './DevGateNote'
 export { EmptyState } from './EmptyState'
 export { Field } from './Field'
 export { RangeBar } from './RangeBar'

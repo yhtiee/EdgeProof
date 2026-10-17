@@ -1,0 +1,113 @@
+{
+  "fixture": "10-flawed-missing-stop",
+  "teachingFixture": true,
+  "note": "Test data for the clarity engine. Not a recommended strategy.",
+  "style": "FLAWED: no initial stop rule",
+  "name": "Structure break, no stop",
+  "profile": {
+    "weekly_hours": 10,
+    "sessions": [
+      "london",
+      "new_york"
+    ],
+    "timezone": "Africa/Lagos"
+  },
+  "version": {
+    "rules": {
+      "schemaVersion": 1,
+      "idea": "Buy breaks of structure on the 1-hour chart.",
+      "direction": "long",
+      "market": {
+        "instruments": [
+          "EUR/USD"
+        ],
+        "timeframes": [
+          "H1"
+        ],
+        "sessions": [
+          "london",
+          "new_york"
+        ]
+      },
+      "setup": {
+        "conditions": [
+          {
+            "id": "c1",
+            "type": "structure",
+            "timeframe": "H1",
+            "params": {
+              "pattern": "break_up",
+              "strength": 3
+            }
+          }
+        ]
+      },
+      "entry": {
+        "timeframe": "H1",
+        "trigger": {
+          "type": "next_open"
+        }
+      },
+      "stop": null,
+      "exit": {
+        "target": {
+          "type": "r_multiple",
+          "r": 2
+        }
+      },
+      "no_trade": {
+        "news": {
+          "enabled": true,
+          "before_min": 30,
+          "after_min": 30
+        },
+        "avoid_rollover": true,
+        "no_new_after_friday": "15:00",
+        "other": []
+      }
+    },
+    "risk_plan": {
+      "risk_pct": 0.5,
+      "daily_loss_r": 3,
+      "weekly_loss_r": 6,
+      "max_drawdown_r": 15,
+      "max_open_trades": 2,
+      "max_trades_per_day": 3,
+      "max_currency_risk_pct": 2,
+      "losing_streak": {
+        "losses": 3,
+        "action": "stop_day"
+      }
+    },
+    "cost_model": {
+      "EUR/USD": {
+        "spread_pips": 0.2,
+        "commission_per_lot": 7.0,
+        "slippage_pips": 0.3,
+        "news_slippage_pips": 3.0,
+        "swap_long": -6.5,
+        "swap_short": 1.2,
+        "placeholder": false
+      }
+    }
+  },
+  "examples": [
+    {
+      "rule_key": "c1",
+      "valid": true
+    },
+    {
+      "rule_key": "c1",
+      "valid": false
+    }
+  ],
+  "expected": {
+    "passed": false,
+    "kind": "mechanical",
+    "fails": [
+      "STOP_MISSING"
+    ],
+    "warns": [],
+    "fit": []
+  }
+}

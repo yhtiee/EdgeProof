@@ -29,7 +29,10 @@ class GatePass(OwnedModel):
     """
 
     gate = models.PositiveSmallIntegerField()
-    # Per-version gates (3-6) add a strategy_version FK once the strategy app is built.
+    # Gates 3–6 are per strategy version; gates 1–2 leave this empty.
+    strategy_version = models.ForeignKey(
+        "strategy.StrategyVersion", null=True, blank=True, on_delete=models.CASCADE, related_name="gate_passes"
+    )
     passed_at = models.DateTimeField()
     evidence = models.JSONField(default=dict)
     config_version = models.PositiveIntegerField(default=1)
@@ -41,8 +44,15 @@ class GatePass(OwnedModel):
         indexes = [models.Index(fields=["user", "gate"])]
         constraints = [
             models.UniqueConstraint(
-                fields=["user", "gate"], condition=models.Q(revoked_at__isnull=True), name="gatepass_one_active"
-            )
+                fields=["user", "gate"],
+                condition=models.Q(revoked_at__isnull=True, strategy_version__isnull=True),
+                name="gatepass_one_active",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "gate", "strategy_version"],
+                condition=models.Q(revoked_at__isnull=True, strategy_version__isnull=False),
+                name="gatepass_one_active_per_version",
+            ),
         ]
 
 

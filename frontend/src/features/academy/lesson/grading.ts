@@ -7,7 +7,8 @@ import type { QuestionBlock } from '../content'
 export type Response = string
 
 export function parseNumber(raw: string): number | null {
-  const cleaned = raw.replace(/[\s,]/g, '').replace(/[−–]/g, '-')
+  // Units typed with the number ("$1,000", "25%") are fine; the unit is shown beside the box.
+  const cleaned = raw.replace(/[\s,$€£%]/g, '').replace(/[−–]/g, '-')
   if (!/^-?\d*\.?\d+$/.test(cleaned)) return null
   return Number(cleaned)
 }

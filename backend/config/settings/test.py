@@ -15,3 +15,4 @@ REST_FRAMEWORK = {  # noqa: F405
     "DEFAULT_THROTTLE_RATES": {**REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"], "auth": "10000/minute", "refresh": "10000/minute"},  # noqa: F405
 }
 SECURE_SSL_REDIRECT = False
+OPEN_GATES = False  # tests always see production gating

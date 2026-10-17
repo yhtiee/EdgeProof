@@ -14,7 +14,8 @@
     "predev": "node scripts/compile-lessons.mjs --drafts",
     "draft": "node scripts/ai/draft.mjs",
     "sources:check": "node scripts/check-sources.mjs",
-    "draft:audit": "node scripts/ai/audit.mjs"
+    "draft:audit": "node scripts/ai/audit.mjs",
+    "exams": "node scripts/compile-exams.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.2.0",

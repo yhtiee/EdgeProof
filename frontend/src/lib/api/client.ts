@@ -34,12 +34,15 @@ export class ApiError extends Error {
   readonly status: number
   readonly code: string
   readonly fields: Record<string, string[]>
+  /** The whole error body, for endpoints that add context (e.g. `next`, `cooldown_until`). */
+  readonly data: Record<string, unknown>
 
   constructor(status: number, body: { code?: string; message?: string; fields?: Record<string, string[]> }) {
     super(body.message ?? `Request failed with status ${status}`)
     this.status = status
     this.code = body.code ?? 'error'
     this.fields = body.fields ?? {}
+    this.data = body as Record<string, unknown>
   }
 }
 
@@ -137,6 +140,35 @@ async function quickFetch(input: string, init: RequestInit): Promise<Response> {
   } catch {
     throw new OfflineError()
   }
+}
+
+/**
+ * A raw request for binary data (screenshot uploads and downloads). Same
+ * token and refresh handling as api(); one attempt with a timeout, because
+ * uploads only run while online. Absolute URLs (an R2 presigned PUT) are
+ * sent without credentials.
+ */
+export async function apiRaw(url: string, init: RequestInit & { auth?: boolean } = {}): Promise<Response> {
+  const { auth = true, headers, ...rest } = init
+  const external = /^https?:\/\//.test(url)
+  const target = external ? url : `${BASE}${url}`
+  const send = () =>
+    fetch(target, {
+      ...rest,
+      credentials: external ? 'omit' : 'include',
+      signal: AbortSignal.timeout(60_000),
+      headers: {
+        ...(!external ? { 'X-CSRFToken': csrfToken() ?? '' } : {}),
+        ...(auth && !external && accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...headers,
+      },
+    }).catch(() => {
+      throw new OfflineError()
+    })
+  let res = await send()
+  if (res.status === 401 && auth && !external && (await refreshAccessToken())) res = await send()
+  if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})))
+  return res
 }
 
 export async function api<T>(

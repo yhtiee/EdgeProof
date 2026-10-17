@@ -20,14 +20,28 @@ export const router = createBrowserRouter([
   {
     Component: RequireOnboarded,
     children: [
-      // The lesson screen is full-focus: no tab bar or sidebar (DESIGN.md §12).
+      // Lesson and exam screens are full-focus: no tab bar or sidebar (DESIGN.md §12).
       { path: '/learn/:slug', lazy: page(() => import('../features/academy/LessonPage')) },
+      { path: '/learn/exam/:key', lazy: page(() => import('../features/academy/ExamPage')) },
       {
         Component: AppShell,
         children: [
           { path: '/learn', lazy: page(() => import('../features/academy/LearnPage')) },
-          { path: '/journal', lazy: page(() => import('../features/journal/JournalPage')) },
+          {
+            path: '/journal',
+            lazy: page(() => import('../features/journal/JournalLayout')),
+            children: [
+              { index: true, lazy: page(() => import('../features/journal/TradesPage')) },
+              { path: 'metrics', lazy: page(() => import('../features/journal/MetricsPage')) },
+              { path: 'reviews', lazy: page(() => import('../features/journal/ReviewsPage')) },
+              { path: 'setup', lazy: page(() => import('../features/journal/SetupPage')) },
+            ],
+          },
+          { path: '/journal/new', lazy: page(() => import('../features/journal/TradeFormPage')) },
+          { path: '/journal/:key', lazy: page(() => import('../features/journal/TradeFormPage')) },
           { path: '/lab', lazy: page(() => import('../features/strategy/LabPage')) },
+          { path: '/lab/:strategyId', lazy: page(() => import('../features/strategy-lab/StrategyPage')) },
+          { path: '/lab/:strategyId/v/:number/:step', lazy: page(() => import('../features/strategy-lab/BuilderPage')) },
           { path: '/progress', lazy: page(() => import('../features/progress/ProgressPage')) },
           { path: '/more', lazy: page(() => import('../features/settings/MorePage')) },
           { path: '/profile', lazy: page(() => import('../features/profile/ProfilePage')) },

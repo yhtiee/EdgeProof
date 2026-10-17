@@ -8,7 +8,7 @@ class LearnerQuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Question
-        fields = ["id", "type", "prompt", "options"]
+        fields = ["id", "type", "prompt", "options", "unit"]
 
 
 class LessonSerializer(serializers.ModelSerializer):
@@ -48,11 +48,18 @@ class ExamSerializer(serializers.ModelSerializer):
 
 
 class AttemptSerializer(serializers.ModelSerializer):
+    """An attempt as the learner sees it: prompts and options only (AC-5)."""
+
+    exam = serializers.SerializerMethodField()
     questions = serializers.SerializerMethodField()
 
     class Meta:
         model = ExamAttempt
         fields = ["id", "exam", "started_at", "submitted_at", "score", "passed", "questions"]
+
+    def get_exam(self, attempt):
+        e = attempt.exam
+        return {"key": e.key, "title": e.title, "scope": e.scope, "pass_mark": e.pass_mark, "draw_count": e.draw_count}
 
     def get_questions(self, attempt):
         by_id = {str(q.id): q for q in Question.objects.filter(id__in=attempt.drawn_question_ids)}

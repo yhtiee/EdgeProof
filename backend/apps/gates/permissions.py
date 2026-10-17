@@ -7,17 +7,17 @@ from rest_framework.permissions import BasePermission
 
 from apps.core.exceptions import GateLocked
 
-from .services import has_gate
+from .services import gates_open, has_gate
 
 
-def RequiresGate(gate: int):  # noqa: N802 - reads like a class at the call site
+def RequiresGate(gate: int):
     class _RequiresGate(BasePermission):
         message = f"Gate {gate} hasn't been passed yet."
 
         def has_permission(self, request, view):
             if not request.user.is_authenticated:
                 return False
-            if not has_gate(request.user, gate):
+            if not gates_open() and not has_gate(request.user, gate):
                 raise GateLocked(self.message)
             return True
 

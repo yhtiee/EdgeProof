@@ -62,6 +62,8 @@ class MeSerializer(serializers.ModelSerializer):
 
     onboarding_step = serializers.IntegerField(source="profile.onboarding_step", read_only=True)
     plan_accepted_at = serializers.DateTimeField(source="profile.plan_accepted_at", read_only=True)
+    # Development builds open every gate; the app shows where a lock would be.
+    gates_open = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -75,10 +77,16 @@ class MeSerializer(serializers.ModelSerializer):
             "email_verified_at",
             "onboarding_step",
             "plan_accepted_at",
+            "gates_open",
             "created_at",
         ]
         read_only_fields = ["id", "email", "role", "email_verified_at", "created_at"]
         extra_kwargs = {"timezone": {"validators": [validate_timezone]}}
+
+    def get_gates_open(self, user) -> bool:
+        from apps.gates.services import gates_open
+
+        return gates_open()
 
     def validate_first_name(self, value):
         if not value.strip():

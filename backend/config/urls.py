@@ -6,12 +6,21 @@ from rest_framework.routers import DefaultRouter
 
 from apps.academy import views as academy
 from apps.accounts import auth_views, views as accounts
-from apps.core import views as core
+from apps.analytics import views as analytics
+from apps.core import uploads, views as core
+from apps.discipline import views as discipline
 from apps.gates import views as gates
+from apps.strategy import views as strategy
+from apps.testing import views as testing
 
 router = DefaultRouter(trailing_slash=False)
 router.register("jobs", core.JobViewSet, basename="job")
 router.register("me/never-again", accounts.NeverAgainViewSet, basename="never-again")
+router.register("me/trading-accounts", testing.TradingAccountViewSet, basename="trading-account")
+router.register("me/practice-rules", testing.PracticeRuleViewSet, basename="practice-rule")
+router.register("me/trades", testing.TradeViewSet, basename="trade")
+router.register("me/reviews", discipline.ReviewViewSet, basename="review")
+router.register("strategies", strategy.StrategyViewSet, basename="strategy")
 
 api_v1 = [
     # Auth
@@ -34,10 +43,28 @@ api_v1 = [
     path("levels", academy.LevelListView.as_view()),
     path("lessons/<slug:slug>/progress", academy.LessonProgressView.as_view()),
     path("me/lesson-progress", academy.MyLessonProgressView.as_view()),
-    path("exams/<uuid:pk>", academy.ExamDetailView.as_view()),
-    path("exams/<uuid:pk>/attempts", academy.StartAttemptView.as_view()),
+    path("me/exams", academy.MyExamsView.as_view()),
+    path("exams/<slug:key>", academy.ExamDetailView.as_view()),
+    path("exams/<slug:key>/attempts", academy.StartAttemptView.as_view()),
     path("attempts/<uuid:pk>/submit", academy.SubmitAttemptView.as_view()),
     path("questions/<uuid:pk>/report", academy.ReportQuestionView.as_view()),
+    # Journal and metrics
+    path("me/trades/export.csv", testing.ExportView.as_view()),
+    path("me/journal/metrics", analytics.JournalMetricsView.as_view()),
+    path("me/journal/breakdowns", analytics.JournalBreakdownsView.as_view()),
+    path("me/journal/activity", analytics.JournalActivityView.as_view()),
+    # Strategy Lab
+    path("strategy-lab/access", strategy.LabAccessView.as_view()),
+    path("versions/<uuid:pk>", strategy.VersionView.as_view()),
+    path("versions/<uuid:pk>/clarity-check", strategy.ClarityCheckView.as_view()),
+    path("versions/<uuid:pk>/gate-3", strategy.Gate3View.as_view()),
+    path("versions/<uuid:pk>/examples", strategy.ExampleListView.as_view()),
+    path("examples/<uuid:pk>", strategy.ExampleView.as_view()),
+    # Uploads
+    path("uploads/presign", uploads.PresignView.as_view()),
+    path("uploads/<path:key>/local", uploads.LocalUploadView.as_view()),
+    path("uploads/<path:key>/confirm", uploads.ConfirmUploadView.as_view()),
+    path("uploads/<path:key>", uploads.UploadView.as_view()),
     # Docs
     path("schema", SpectacularAPIView.as_view(), name="schema"),
     path("docs", SpectacularSwaggerView.as_view(url_name="schema")),

@@ -1,0 +1,173 @@
+{
+  "fixture": "06-triple-screen",
+  "teachingFixture": true,
+  "note": "Test data for the clarity engine. Not a recommended strategy.",
+  "style": "Multi-timeframe: weekly direction, daily pullback, 4-hour entry",
+  "name": "Three-chart pullback",
+  "profile": {
+    "weekly_hours": 10,
+    "sessions": [
+      "london",
+      "new_york"
+    ],
+    "timezone": "Africa/Lagos"
+  },
+  "version": {
+    "rules": {
+      "schemaVersion": 1,
+      "idea": "Weekly chart sets the direction, daily finds the pullback, 4-hour times the entry.",
+      "direction": "both",
+      "market": {
+        "instruments": [
+          "USD/JPY",
+          "EUR/USD"
+        ],
+        "timeframes": [
+          "W1",
+          "D1",
+          "H4"
+        ],
+        "sessions": [
+          "london",
+          "new_york"
+        ]
+      },
+      "setup": {
+        "conditions": [
+          {
+            "id": "c1",
+            "type": "price_vs_ma",
+            "timeframe": "W1",
+            "params": {
+              "ma": "ema",
+              "period": 13,
+              "relation": "above"
+            }
+          },
+          {
+            "id": "c2",
+            "type": "rsi",
+            "timeframe": "D1",
+            "params": {
+              "period": 14,
+              "relation": "below",
+              "value": 40
+            }
+          },
+          {
+            "id": "c3",
+            "type": "candle_pattern",
+            "timeframe": "H4",
+            "params": {
+              "pattern": "bullish_engulfing",
+              "ratio": 1.2
+            }
+          }
+        ]
+      },
+      "entry": {
+        "timeframe": "H4",
+        "trigger": {
+          "type": "stop_beyond_setup",
+          "buffer": {
+            "unit": "pips",
+            "value": 2
+          },
+          "expiry_bars": 3
+        }
+      },
+      "stop": {
+        "rule": {
+          "type": "atr",
+          "period": 14,
+          "multiple": 1.5
+        }
+      },
+      "exit": {
+        "target": {
+          "type": "r_multiple",
+          "r": 2.5
+        },
+        "breakeven": {
+          "at_r": 1
+        }
+      },
+      "no_trade": {
+        "news": {
+          "enabled": true,
+          "before_min": 30,
+          "after_min": 30
+        },
+        "avoid_rollover": true,
+        "no_new_after_friday": "15:00",
+        "other": []
+      }
+    },
+    "risk_plan": {
+      "risk_pct": 0.5,
+      "daily_loss_r": 3,
+      "weekly_loss_r": 6,
+      "max_drawdown_r": 15,
+      "max_open_trades": 2,
+      "max_trades_per_day": 3,
+      "max_currency_risk_pct": 2,
+      "losing_streak": {
+        "losses": 3,
+        "action": "stop_day"
+      }
+    },
+    "cost_model": {
+      "USD/JPY": {
+        "spread_pips": 0.2,
+        "commission_per_lot": 7.0,
+        "slippage_pips": 0.3,
+        "news_slippage_pips": 3.0,
+        "swap_long": -6.5,
+        "swap_short": 1.2,
+        "placeholder": false
+      },
+      "EUR/USD": {
+        "spread_pips": 0.2,
+        "commission_per_lot": 7.0,
+        "slippage_pips": 0.3,
+        "news_slippage_pips": 3.0,
+        "swap_long": -6.5,
+        "swap_short": 1.2,
+        "placeholder": false
+      }
+    }
+  },
+  "examples": [
+    {
+      "rule_key": "c1",
+      "valid": true
+    },
+    {
+      "rule_key": "c1",
+      "valid": false
+    },
+    {
+      "rule_key": "c2",
+      "valid": true
+    },
+    {
+      "rule_key": "c2",
+      "valid": false
+    },
+    {
+      "rule_key": "c3",
+      "valid": true
+    },
+    {
+      "rule_key": "c3",
+      "valid": false
+    }
+  ],
+  "expected": {
+    "passed": true,
+    "kind": "mechanical",
+    "fails": [],
+    "warns": [],
+    "fit": []
+  }
+}

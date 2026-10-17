@@ -29,6 +29,8 @@ type Props = {
   /** Shown on the completion screen. */
   next?: { to: string; label: string }
   visitor?: boolean
+  /** Shown above the first screen, e.g. the development-build gate note. */
+  notice?: ReactNode
 }
 
 type Feedback = { correct: boolean } | null
@@ -44,7 +46,7 @@ export function LessonPlayer(props: Props) {
   )
 }
 
-function Player({ lesson, context, startAt = 0, onScreenDone, exitTo, exitLabel, next, visitor }: Props) {
+function Player({ lesson, context, startAt = 0, onScreenDone, exitTo, exitLabel, next, visitor, notice }: Props) {
   const total = lesson.screens.length
   const [index, setIndex] = useState(() => Math.min(startAt, total - 1))
   const [finished, setFinished] = useState(false)
@@ -119,6 +121,7 @@ function Player({ lesson, context, startAt = 0, onScreenDone, exitTo, exitLabel,
       <TopBar lesson={lesson} context={context} index={index} exitTo={exitTo} exitLabel={exitLabel} />
 
       <main className="px-4 pb-48 pt-8 md:px-6 md:pt-12">
+        {notice && index === 0 && <div className={`${STAGE} mb-6`}>{notice}</div>}
         <div key={index} className={`${STAGE} ep-screen-in`}>
           <h1 ref={headingRef} tabIndex={-1} className="sr-only">
             {lesson.title}, step {index + 1} of {total}

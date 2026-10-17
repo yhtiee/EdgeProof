@@ -17,7 +17,14 @@ from .serializers import (
     QuestionReportSerializer,
     SubmitSerializer,
 )
-from .services import first_incomplete_before, start_attempt, submit_attempt
+from .services import (
+    CooldownActive,
+    ExamLocked,
+    exam_status,
+    lesson_blocker,
+    start_attempt,
+    submit_attempt,
+)
 
 
 class LevelListView(generics.ListAPIView):
@@ -44,14 +51,14 @@ class LessonProgressView(APIView):
         progress = LessonProgress.objects.filter(user=request.user, lesson=lesson).first()
         if progress is None:
             # Lessons open in order (spec §5). Already-started lessons can always be saved.
-            blocker = first_incomplete_before(request.user, lesson)
+            blocker = lesson_blocker(request.user, lesson)
             if blocker:
                 return Response(
                     {
                         "code": "lesson_locked",
-                        "message": f"Finish \"{blocker['title']}\" first. Lessons open in order.",
+                        "message": f"Finish \"{blocker.title}\" first. The path opens in order.",
                         "fields": {},
-                        "next": blocker["slug"],
+                        "next": {"kind": blocker.kind, "key": blocker.key},
                     },
                     status=status.HTTP_409_CONFLICT,
                 )
@@ -78,21 +85,48 @@ class MyLessonProgressView(generics.ListAPIView):
         return LessonProgress.objects.owned_by(self.request.user).select_related("lesson")
 
 
-class ExamDetailView(generics.RetrieveAPIView):
-    """GET /exams/{id}"""
+def _published_exam(key):
+    return get_object_or_404(Exam.objects.select_related("level", "module"), key=key, status=Exam.Status.PUBLISHED)
 
-    serializer_class = ExamSerializer
-    queryset = Exam.objects.filter(status=Exam.Status.PUBLISHED)
+
+class MyExamsView(APIView):
+    """GET /me/exams: every published exam with this learner's status (Learn page)."""
+
+    def get(self, request):
+        exams = list(Exam.objects.filter(status=Exam.Status.PUBLISHED).select_related("level", "module"))
+        return Response(exam_status(request.user, exams))
+
+
+class ExamDetailView(APIView):
+    """GET /exams/{key}: one exam with this learner's status."""
+
+    def get(self, request, key):
+        return Response(exam_status(request.user, [_published_exam(key)])[0])
 
 
 class StartAttemptView(APIView):
-    """POST /exams/{id}/attempts: draws questions server-side, returns prompts only."""
+    """
+    POST /exams/{key}/attempts: draws questions on the server and returns
+    prompts and options only. Resumes an unfinished attempt if there is one.
+    """
 
     permission_classes = [RequiresGate(1)]
 
-    def post(self, request, pk):
-        exam = get_object_or_404(Exam, pk=pk, status=Exam.Status.PUBLISHED)
-        attempt = start_attempt(request.user, exam)
+    def post(self, request, key):
+        exam = _published_exam(key)
+        try:
+            attempt = start_attempt(request.user, exam)
+        except ExamLocked as exc:
+            b = exc.blocker
+            return Response(
+                {"code": "exam_locked", "message": str(exc.detail), "fields": {}, "next": {"kind": b.kind, "key": b.key}},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except CooldownActive as exc:
+            return Response(
+                {"code": "exam_cooldown", "message": str(exc.detail), "fields": {}, "cooldown_until": exc.until},
+                status=status.HTTP_409_CONFLICT,
+            )
         return Response(AttemptSerializer(attempt).data, status=status.HTTP_201_CREATED)
 
 
@@ -100,17 +134,17 @@ class SubmitAttemptView(APIView):
     """POST /attempts/{id}/submit: graded on the server."""
 
     def post(self, request, pk):
-        attempt = get_object_or_404(ExamAttempt, pk=pk, user=request.user)
+        attempt = get_object_or_404(ExamAttempt.objects.select_related("exam__level"), pk=pk, user=request.user)
         serializer = SubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         result = submit_attempt(attempt, serializer.validated_data["answers"])
-        ActivityEvent.objects.create(user=request.user, type="exam_attempt", ref=str(attempt.exam_id))
+        ActivityEvent.objects.create(user=request.user, type="exam_attempt", ref=attempt.exam.key or str(attempt.exam_id))
 
         if result["passed"] and attempt.exam.scope in (Exam.Scope.LEVEL, Exam.Scope.PLACEMENT):
             gate2 = evaluate_gate_2(request.user)
             if gate2["met"]:
                 grant_gate(request.user, gate=2, evidence=gate2)
-            result["gate_2"] = gate2
+            result["gate_2_passed"] = gate2["met"]
         return Response(result)
 
 

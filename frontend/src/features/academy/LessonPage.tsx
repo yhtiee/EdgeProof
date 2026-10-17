@@ -1,17 +1,18 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router'
 import { Lock } from 'lucide-react'
-import { Banner, buttonClass } from '../../components/ui'
+import { Banner, DevGateNote, buttonClass } from '../../components/ui'
 import { useSession } from '../../lib/session'
 import { lessonsInOrder, useCurriculum, useLesson } from './content'
 import { LessonPlayer, LessonScene } from './lesson/LessonPlayer'
 import { useLessonProgress } from './progress'
-import { lessonAccess } from './sequence'
+import { useMyExams } from './exams'
+import { academyPath, itemId, pathAccess, pathTo } from './sequence'
 
 /**
  * /learn/:slug: a lesson for a signed-in learner, resuming where they
- * stopped. Lessons open in order (spec §5); a locked one points to the
- * lesson that comes first. The server enforces the same rule.
+ * stopped. The path opens in order (spec §5): a locked lesson points to the
+ * lesson or exam that comes first. The server enforces the same rule.
  */
 export default function LessonPage() {
   const { slug } = useParams()
@@ -20,14 +21,20 @@ export default function LessonPage() {
   const lesson = useLesson(slug)
   const curriculum = useCurriculum()
   const progress = useLessonProgress(userId)
+  const exams = useMyExams(userId)
 
   const order = useMemo(() => (curriculum.data ? lessonsInOrder(curriculum.data) : []), [curriculum.data])
   const ref = order.find((l) => l.slug === slug)
+  const path = useMemo(
+    () => (curriculum.data ? academyPath(curriculum.data.levels, progress.byLesson, exams.byKey) : []),
+    [curriculum.data, progress.byLesson, exams.byKey],
+  )
+  // The item after this lesson on the path: the next lesson, or the module exam.
   const next = useMemo(() => {
-    const i = order.findIndex((l) => l.slug === slug)
-    const n = i >= 0 ? order[i + 1] : undefined
-    return n ? { to: `/learn/${n.slug}`, label: `Next: ${n.title}` } : undefined
-  }, [order, slug])
+    const i = path.findIndex((p) => p.kind === 'lesson' && p.key === slug)
+    const n = i >= 0 ? path[i + 1] : undefined
+    return n ? { to: pathTo(n), label: n.kind === 'exam' ? 'Next: module exam' : `Next: ${n.title}` } : undefined
+  }, [path, slug])
 
   if (lesson.isError) {
     return (
@@ -41,7 +48,7 @@ export default function LessonPage() {
       </main>
     )
   }
-  if (!lesson.data || progress.loading || !curriculum.data) {
+  if (!lesson.data || progress.loading || exams.loading || !curriculum.data) {
     return (
       <div className="mx-auto w-full max-w-[680px] px-4 py-10" aria-busy="true">
         <div className="h-6 w-56 animate-pulse rounded-sm bg-surface motion-reduce:animate-none" />
@@ -50,7 +57,8 @@ export default function LessonPage() {
     )
   }
 
-  const access = lessonAccess(order, progress.byLesson)[lesson.data.slug]
+  const gatesOpen = session.status === 'signed-in' && !!session.me.gates_open
+  const access = pathAccess(path, gatesOpen)[itemId('lesson', lesson.data.slug)]
   if (access?.locked && access.blocker) {
     return (
       <main className="mx-auto grid w-full max-w-[680px] gap-6 px-4 py-10 md:py-16">
@@ -62,11 +70,12 @@ export default function LessonPage() {
           </p>
           <h1 className="mt-2 text-h1 md:text-h1-lg">{lesson.data.title}</h1>
           <p className="mt-3 text-lesson text-muted">
-            Lessons open in order, so each one builds on the last. This one opens when you finish &ldquo;{access.blocker.title}&rdquo;.
+            Lessons open in order, so each one builds on the last. This one opens when you{' '}
+            {access.blocker.kind === 'exam' ? 'pass' : 'finish'} &ldquo;{access.blocker.title}&rdquo;.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-4">
-          <Link to={`/learn/${access.blocker.slug}`} className={buttonClass('primary')}>
+          <Link to={pathTo(access.blocker)} className={buttonClass('primary')}>
             Go to {access.blocker.title}
           </Link>
           <Link to="/learn" className="inline-flex min-h-11 items-center text-small font-semibold text-muted hover:text-text">
@@ -92,6 +101,13 @@ export default function LessonPage() {
       exitTo="/learn"
       exitLabel="Back to Learn"
       next={next}
+      notice={
+        access?.wouldLock && access.blocker ? (
+          <DevGateNote>
+            When deployed, this lesson opens after {access.blocker.kind === 'exam' ? 'passing' : 'finishing'} &ldquo;{access.blocker.title}&rdquo;.
+          </DevGateNote>
+        ) : undefined
+      }
     />
   )
 }

@@ -1,0 +1,137 @@
+{
+  "fixture": "09-flawed-vague-words",
+  "teachingFixture": true,
+  "note": "Test data for the clarity engine. Not a recommended strategy.",
+  "style": "FLAWED: vague free text with no override",
+  "name": "Vague rejection idea",
+  "profile": {
+    "weekly_hours": 10,
+    "sessions": [
+      "london"
+    ],
+    "timezone": "Africa/Lagos"
+  },
+  "version": {
+    "rules": {
+      "schemaVersion": 1,
+      "idea": "Catch reversals at important levels.",
+      "direction": "long",
+      "market": {
+        "instruments": [
+          "EUR/USD"
+        ],
+        "timeframes": [
+          "H1"
+        ],
+        "sessions": [
+          "london"
+        ]
+      },
+      "setup": {
+        "conditions": [
+          {
+            "id": "c1",
+            "type": "price_vs_ma",
+            "timeframe": "H1",
+            "params": {
+              "ma": "ema",
+              "period": 50,
+              "relation": "above"
+            }
+          },
+          {
+            "id": "c2",
+            "type": "free_text",
+            "timeframe": "H1",
+            "params": {
+              "text": "Price makes a strong move down and shows a clear rejection at a key level."
+            }
+          }
+        ]
+      },
+      "entry": {
+        "timeframe": "H1",
+        "trigger": {
+          "type": "next_open"
+        }
+      },
+      "stop": {
+        "rule": {
+          "type": "setup_candle",
+          "buffer": {
+            "unit": "pips",
+            "value": 2
+          }
+        }
+      },
+      "exit": {
+        "target": {
+          "type": "r_multiple",
+          "r": 2
+        }
+      },
+      "no_trade": {
+        "news": {
+          "enabled": true,
+          "before_min": 30,
+          "after_min": 30
+        },
+        "avoid_rollover": true,
+        "no_new_after_friday": "15:00",
+        "other": []
+      }
+    },
+    "risk_plan": {
+      "risk_pct": 0.5,
+      "daily_loss_r": 3,
+      "weekly_loss_r": 6,
+      "max_drawdown_r": 15,
+      "max_open_trades": 2,
+      "max_trades_per_day": 3,
+      "max_currency_risk_pct": 2,
+      "losing_streak": {
+        "losses": 3,
+        "action": "stop_day"
+      }
+    },
+    "cost_model": {
+      "EUR/USD": {
+        "spread_pips": 0.2,
+        "commission_per_lot": 7.0,
+        "slippage_pips": 0.3,
+        "news_slippage_pips": 3.0,
+        "swap_long": -6.5,
+        "swap_short": 1.2,
+        "placeholder": false
+      }
+    }
+  },
+  "examples": [
+    {
+      "rule_key": "c1",
+      "valid": true
+    },
+    {
+      "rule_key": "c1",
+      "valid": false
+    },
+    {
+      "rule_key": "c2",
+      "valid": true
+    },
+    {
+      "rule_key": "c2",
+      "valid": false
+    }
+  ],
+  "expected": {
+    "passed": false,
+    "kind": "mechanical",
+    "fails": [
+      "FREE_TEXT_UNRESOLVED",
+      "FREE_TEXT_VAGUE"
+    ],
+    "warns": [],
+    "fit": []
+  }
+}

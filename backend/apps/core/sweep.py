@@ -48,8 +48,16 @@ def run_sweep() -> dict:
 
     # 3. Unconfirmed uploads older than 24 hours (object deletion via storage service).
     stale = UploadIntent.objects.filter(confirmed_at__isnull=True, created_at__lt=now - timedelta(hours=24))
-    report["uploads_cleaned"] = stale.count()
-    stale.delete()
+    from .uploads import delete_object
+
+    report["uploads_cleaned"] = 0
+    for intent in stale:
+        try:
+            delete_object(intent.key)
+        except Exception:  # noqa: BLE001 (object never arrived; drop the row anyway)
+            log.info("sweep: no object for %s", intent.key)
+        intent.delete()
+        report["uploads_cleaned"] += 1
 
     report["seconds"] = round(time.monotonic() - started, 3)
     log.info("sweep finished %s", report)

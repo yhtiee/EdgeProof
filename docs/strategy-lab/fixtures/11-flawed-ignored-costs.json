@@ -1,0 +1,122 @@
+{
+  "fixture": "11-flawed-ignored-costs",
+  "teachingFixture": true,
+  "note": "Test data for the clarity engine. Not a recommended strategy.",
+  "style": "FLAWED: zero costs on one pair and none on the other",
+  "name": "Costs ignored",
+  "profile": {
+    "weekly_hours": 10,
+    "sessions": [
+      "london",
+      "new_york"
+    ],
+    "timezone": "Africa/Lagos"
+  },
+  "version": {
+    "rules": {
+      "schemaVersion": 1,
+      "idea": "Trend trades on the 4-hour chart, tested without costs.",
+      "direction": "long",
+      "market": {
+        "instruments": [
+          "EUR/USD",
+          "GBP/USD"
+        ],
+        "timeframes": [
+          "H4"
+        ],
+        "sessions": [
+          "london",
+          "new_york"
+        ]
+      },
+      "setup": {
+        "conditions": [
+          {
+            "id": "c1",
+            "type": "price_vs_ma",
+            "timeframe": "H4",
+            "params": {
+              "ma": "sma",
+              "period": 100,
+              "relation": "above"
+            }
+          }
+        ]
+      },
+      "entry": {
+        "timeframe": "H4",
+        "trigger": {
+          "type": "next_open"
+        }
+      },
+      "stop": {
+        "rule": {
+          "type": "atr",
+          "period": 14,
+          "multiple": 2
+        }
+      },
+      "exit": {
+        "target": {
+          "type": "r_multiple",
+          "r": 2
+        }
+      },
+      "no_trade": {
+        "news": {
+          "enabled": true,
+          "before_min": 30,
+          "after_min": 30
+        },
+        "avoid_rollover": true,
+        "no_new_after_friday": "15:00",
+        "other": []
+      }
+    },
+    "risk_plan": {
+      "risk_pct": 0.5,
+      "daily_loss_r": 3,
+      "weekly_loss_r": 6,
+      "max_drawdown_r": 15,
+      "max_open_trades": 2,
+      "max_trades_per_day": 3,
+      "max_currency_risk_pct": 2,
+      "losing_streak": {
+        "losses": 3,
+        "action": "stop_day"
+      }
+    },
+    "cost_model": {
+      "EUR/USD": {
+        "spread_pips": 0,
+        "commission_per_lot": 0,
+        "slippage_pips": 0,
+        "news_slippage_pips": 0,
+        "swap_long": 0,
+        "swap_short": 0,
+        "placeholder": false
+      }
+    }
+  },
+  "examples": [
+    {
+      "rule_key": "c1",
+      "valid": true
+    },
+    {
+      "rule_key": "c1",
+      "valid": false
+    }
+  ],
+  "expected": {
+    "passed": false,
+    "kind": "mechanical",
+    "fails": [
+      "COSTS_MISSING",
+      "COSTS_ZERO"
+    ],
+    "warns": [],
+    "fit": []
+  }
+}

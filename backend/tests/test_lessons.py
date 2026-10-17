@@ -103,7 +103,7 @@ def test_lessons_open_in_order(index_file):
     # l1-c comes after l1-a (l1-b is a draft, so it's not in the sequence).
     res = c.post("/api/v1/lessons/l1-c/progress", {"completed_blocks": [0]}, format="json")
     assert res.status_code == 409
-    assert res.json()["code"] == "lesson_locked" and res.json()["next"] == "l1-a"
+    assert res.json()["code"] == "lesson_locked" and res.json()["next"] == {"kind": "lesson", "key": "l1-a"}
 
     c.post("/api/v1/lessons/l1-a/progress", {"completed_blocks": [0, 1]}, format="json")
     assert c.post("/api/v1/lessons/l1-c/progress", {"completed_blocks": [0]}, format="json").status_code == 409

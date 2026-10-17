@@ -1,0 +1,2195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edgeproof.app/schemas/rulebook.v1.json",
+  "title": "EdgeProof rulebook version",
+  "description": "One strategy version: rules, risk plan and cost model. Structure only; the clarity engine checks completeness and ranges.",
+  "type": "object",
+  "properties": {
+    "rules": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "idea": {
+          "type": "string",
+          "maxLength": 280
+        },
+        "direction": {
+          "enum": [
+            "long",
+            "short",
+            "both"
+          ]
+        },
+        "market": {
+          "type": "object",
+          "properties": {
+            "instruments": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}/[A-Z]{3}$"
+              },
+              "maxItems": 12,
+              "uniqueItems": true
+            },
+            "timeframes": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "M5",
+                  "M15",
+                  "M30",
+                  "H1",
+                  "H4",
+                  "D1",
+                  "W1"
+                ]
+              },
+              "maxItems": 7,
+              "uniqueItems": true
+            },
+            "sessions": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "asia",
+                  "london",
+                  "new_york"
+                ]
+              },
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "instruments",
+            "timeframes",
+            "sessions"
+          ],
+          "additionalProperties": false
+        },
+        "setup": {
+          "type": "object",
+          "properties": {
+            "conditions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/condition"
+              },
+              "maxItems": 12
+            }
+          },
+          "required": [
+            "conditions"
+          ],
+          "additionalProperties": false
+        },
+        "entry": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "timeframe": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "M5",
+                        "M15",
+                        "M30",
+                        "H1",
+                        "H4",
+                        "D1",
+                        "W1"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "trigger": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "next_open"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "buffer": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/$defs/distance"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "expiry_bars": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "type": {
+                          "const": "stop_beyond_setup"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ma": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "sma",
+                                "ema"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "period": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "expiry_bars": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "type": {
+                          "const": "limit_at_ma"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "percent": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "expiry_bars": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "type": {
+                          "const": "limit_retrace"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "trigger"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stop": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "rule": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "strength": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "buffer": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/$defs/distance"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "type": {
+                          "const": "swing"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "buffer": {
+                          "anyOf": [
+                            {
+                              "$ref": "#/$defs/distance"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "type": {
+                          "const": "setup_candle"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "period": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "multiple": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "type": {
+                          "const": "atr"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "pips": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "type": {
+                          "const": "fixed"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "skip_if_wider_than": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/distance"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "rule"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "exit": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "target": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "r": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "type": {
+                          "const": "r_multiple"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "strength": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "type": {
+                          "const": "prior_swing"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "prior_day_level"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "period": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "multiple": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "type": {
+                          "const": "atr"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "none"
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "breakeven": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "at_r": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "partial": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "at_r": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "percent": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "trailing": {
+                  "anyOf": [
+                    {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "period": {
+                              "anyOf": [
+                                {
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "multiple": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "type": {
+                              "const": "atr"
+                            }
+                          },
+                          "required": [
+                            "type"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "strength": {
+                              "anyOf": [
+                                {
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "type": {
+                              "const": "swing"
+                            }
+                          },
+                          "required": [
+                            "type"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "ma": {
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    "sma",
+                                    "ema"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "period": {
+                              "anyOf": [
+                                {
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "type": {
+                              "const": "ma"
+                            }
+                          },
+                          "required": [
+                            "type"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "time_exit": {
+                  "anyOf": [
+                    {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "bars": {
+                              "anyOf": [
+                                {
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "type": {
+                              "const": "bars"
+                            }
+                          },
+                          "required": [
+                            "type"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "pattern": "^\\d{2}:\\d{2}$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "zone": {
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    "Europe/London",
+                                    "America/New_York",
+                                    "Asia/Tokyo",
+                                    "UTC"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "type": {
+                              "const": "time"
+                            }
+                          },
+                          "required": [
+                            "type"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "const": "before_weekend"
+                            }
+                          },
+                          "required": [
+                            "type"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "target"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "no_trade": {
+          "type": "object",
+          "properties": {
+            "news": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "before_min": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "after_min": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "enabled"
+              ],
+              "additionalProperties": false
+            },
+            "max_spread_pips": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "avoid_rollover": {
+              "type": "boolean"
+            },
+            "no_new_after_friday": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{2}:\\d{2}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "other": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/condition"
+              },
+              "maxItems": 6
+            }
+          },
+          "required": [
+            "news",
+            "avoid_rollover",
+            "other"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "idea",
+        "direction",
+        "market",
+        "setup",
+        "entry",
+        "stop",
+        "exit",
+        "no_trade"
+      ],
+      "additionalProperties": false
+    },
+    "risk_plan": {
+      "type": "object",
+      "properties": {
+        "risk_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "daily_loss_r": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "weekly_loss_r": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max_drawdown_r": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max_open_trades": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max_trades_per_day": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max_currency_risk_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "losing_streak": {
+          "type": "object",
+          "properties": {
+            "losses": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "action": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "stop_day",
+                    "halve_risk",
+                    "stop_review"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "cost_model": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Z]{3}/[A-Z]{3}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "spread_pips": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "commission_per_lot": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "slippage_pips": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "news_slippage_pips": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "swap_long": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "swap_short": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "placeholder": {
+            "type": "boolean"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "rules",
+    "risk_plan",
+    "cost_model"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "distance": {
+      "type": "object",
+      "properties": {
+        "unit": {
+          "enum": [
+            "pips",
+            "atr"
+          ]
+        },
+        "value": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "unit",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "condition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]{1,16}$"
+            },
+            "type": {
+              "const": "price_vs_ma"
+            },
+            "timeframe": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "M5",
+                    "M15",
+                    "M30",
+                    "H1",
+                    "H4",
+                    "D1",
+                    "W1"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "ma": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "sma",
+                        "ema"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "period": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "relation": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "above",
+                        "below"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "params"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]{1,16}$"
+            },
+            "type": {
+              "const": "ma_cross"
+            },
+            "timeframe": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "M5",
+                    "M15",
+                    "M30",
+                    "H1",
+                    "H4",
+                    "D1",
+                    "W1"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "ma": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "sma",
+                        "ema"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "fast": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "slow": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "direction": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "bullish",
+                        "bearish"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "within_bars": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "params"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]{1,16}$"
+            },
+            "type": {
+              "const": "ma_order"
+            },
+            "timeframe": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "M5",
+                    "M15",
+                    "M30",
+                    "H1",
+                    "H4",
+                    "D1",
+                    "W1"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "ma": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "sma",
+                        "ema"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "fast": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "slow": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "relation": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "above",
+                        "below"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "params"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]{1,16}$"
+            },
+            "type": {
+              "const": "structure"
+            },
+            "timeframe": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "M5",
+                    "M15",
+                    "M30",
+                    "H1",
+                    "H4",
+                    "D1",
+                    "W1"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "pattern": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "higher_highs_lows",
+                        "lower_highs_lows",
+                        "break_up",
+                        "break_down"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "strength": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "params"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]{1,16}$"
+            },
+            "type": {
+              "const": "level"
+            },
+            "timeframe": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "M5",
+                    "M15",
+                    "M30",
+                    "H1",
+                    "H4",
+                    "D1",
+                    "W1"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "level": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "prior_day_high",
+                        "prior_day_low",
+                        "prior_week_high",
+                        "prior_week_low",
+                        "swing_high",
+                        "swing_low",
+                        "round_number"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "event": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "within",
+                        "closes_above",
+                        "closes_below"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tolerance": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/distance"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "strength": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "params"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]{1,16}$"
+            },
+            "type": {
+              "const": "candle_pattern"
+            },
+            "timeframe": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "M5",
+                    "M15",
+                    "M30",
+                    "H1",
+                    "H4",
+                    "D1",
+                    "W1"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "pattern": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "bullish_engulfing",
+                        "bearish_engulfing",
+                        "bullish_pin_bar",
+                        "bearish_pin_bar",
+                        "inside_bar"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "ratio": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "wick_ratio": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "min_range_atr": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "params"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]{1,16}$"
+            },
+            "type": {
+              "const": "rsi"
+            },
+            "timeframe": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "M5",
+                    "M15",
+                    "M30",
+                    "H1",
+                    "H4",
+                    "D1",
+                    "W1"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "relation": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "above",
+                        "below",
+                        "crosses_above",
+                        "crosses_below"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "params"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]{1,16}$"
+            },
+            "type": {
+              "const": "macd"
+            },
+            "timeframe": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "M5",
+                    "M15",
+                    "M30",
+                    "H1",
+                    "H4",
+                    "D1",
+                    "W1"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "fast": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "slow": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "signal": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "event": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "line_above_signal",
+                        "line_below_signal",
+                        "crosses_above_signal",
+                        "crosses_below_signal",
+                        "histogram_above_zero",
+                        "histogram_below_zero"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "params"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]{1,16}$"
+            },
+            "type": {
+              "const": "atr"
+            },
+            "timeframe": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "M5",
+                    "M15",
+                    "M30",
+                    "H1",
+                    "H4",
+                    "D1",
+                    "W1"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "relation": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "above",
+                        "below"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "params"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]{1,16}$"
+            },
+            "type": {
+              "const": "distance"
+            },
+            "timeframe": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "M5",
+                    "M15",
+                    "M30",
+                    "H1",
+                    "H4",
+                    "D1",
+                    "W1"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "to": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "ma",
+                        "prior_day_high",
+                        "prior_day_low"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "ma": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "sma",
+                        "ema"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "period": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "relation": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "within",
+                        "beyond"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "unit": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "pips",
+                        "atr"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "params"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]{1,16}$"
+            },
+            "type": {
+              "const": "time_window"
+            },
+            "timeframe": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "M5",
+                    "M15",
+                    "M30",
+                    "H1",
+                    "H4",
+                    "D1",
+                    "W1"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^\\d{2}:\\d{2}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "to": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^\\d{2}:\\d{2}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "zone": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "Europe/London",
+                        "America/New_York",
+                        "Asia/Tokyo",
+                        "UTC"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "days": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "mon",
+                          "tue",
+                          "wed",
+                          "thu",
+                          "fri"
+                        ]
+                      },
+                      "uniqueItems": true
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "params"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]{1,16}$"
+            },
+            "type": {
+              "const": "candle_size"
+            },
+            "timeframe": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "M5",
+                    "M15",
+                    "M30",
+                    "H1",
+                    "H4",
+                    "D1",
+                    "W1"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "measure": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "range",
+                        "body"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "relation": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "above",
+                        "below"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "unit": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "pips",
+                        "atr"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "params"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]{1,16}$"
+            },
+            "type": {
+              "const": "free_text"
+            },
+            "timeframe": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "M5",
+                    "M15",
+                    "M30",
+                    "H1",
+                    "H4",
+                    "D1",
+                    "W1"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 1000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "override": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "reason": {
+                          "type": "string",
+                          "maxLength": 280
+                        },
+                        "recorded_at": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "params"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

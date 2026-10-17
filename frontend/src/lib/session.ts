@@ -17,6 +17,8 @@ export type Me = {
   /** Next onboarding step: 2 time · 3 experience · 4 plan · 5 done. */
   onboarding_step: number
   plan_accepted_at: string | null
+  /** Development builds only: every gate is open, and the app marks where locks would be. */
+  gates_open?: boolean
   created_at: string
 }
 

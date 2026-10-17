@@ -1,0 +1,164 @@
+{
+  "fixture": "03-range-rsi",
+  "teachingFixture": true,
+  "note": "Test data for the clarity engine. Not a recommended strategy.",
+  "style": "Range: buy near yesterday's low when RSI turns up",
+  "name": "Prior-day range reversal",
+  "profile": {
+    "weekly_hours": 10,
+    "sessions": [
+      "london",
+      "new_york"
+    ],
+    "timezone": "Africa/Lagos"
+  },
+  "version": {
+    "rules": {
+      "schemaVersion": 1,
+      "idea": "In quiet markets, fade moves into yesterday's low and high.",
+      "direction": "both",
+      "market": {
+        "instruments": [
+          "EUR/USD"
+        ],
+        "timeframes": [
+          "H1"
+        ],
+        "sessions": [
+          "london",
+          "new_york"
+        ]
+      },
+      "setup": {
+        "conditions": [
+          {
+            "id": "c1",
+            "type": "level",
+            "timeframe": "H1",
+            "params": {
+              "level": "prior_day_low",
+              "event": "within",
+              "tolerance": {
+                "unit": "pips",
+                "value": 5
+              }
+            }
+          },
+          {
+            "id": "c2",
+            "type": "rsi",
+            "timeframe": "H1",
+            "params": {
+              "period": 14,
+              "relation": "crosses_above",
+              "value": 30
+            }
+          },
+          {
+            "id": "c3",
+            "type": "atr",
+            "timeframe": "H1",
+            "params": {
+              "period": 14,
+              "relation": "below",
+              "value": 12
+            }
+          }
+        ]
+      },
+      "entry": {
+        "timeframe": "H1",
+        "trigger": {
+          "type": "next_open"
+        }
+      },
+      "stop": {
+        "rule": {
+          "type": "swing",
+          "strength": 3,
+          "buffer": {
+            "unit": "pips",
+            "value": 3
+          }
+        }
+      },
+      "exit": {
+        "target": {
+          "type": "prior_day_level"
+        },
+        "time_exit": {
+          "type": "bars",
+          "bars": 24
+        }
+      },
+      "no_trade": {
+        "news": {
+          "enabled": true,
+          "before_min": 30,
+          "after_min": 30
+        },
+        "avoid_rollover": true,
+        "no_new_after_friday": "15:00",
+        "other": [],
+        "max_spread_pips": 2
+      }
+    },
+    "risk_plan": {
+      "risk_pct": 0.5,
+      "daily_loss_r": 3,
+      "weekly_loss_r": 6,
+      "max_drawdown_r": 15,
+      "max_open_trades": 2,
+      "max_trades_per_day": 3,
+      "max_currency_risk_pct": 2,
+      "losing_streak": {
+        "losses": 3,
+        "action": "stop_day"
+      }
+    },
+    "cost_model": {
+      "EUR/USD": {
+        "spread_pips": 0.2,
+        "commission_per_lot": 7.0,
+        "slippage_pips": 0.3,
+        "news_slippage_pips": 3.0,
+        "swap_long": -6.5,
+        "swap_short": 1.2,
+        "placeholder": false
+      }
+    }
+  },
+  "examples": [
+    {
+      "rule_key": "c1",
+      "valid": true
+    },
+    {
+      "rule_key": "c1",
+      "valid": false
+    },
+    {
+      "rule_key": "c2",
+      "valid": true
+    },
+    {
+      "rule_key": "c2",
+      "valid": false
+    },
+    {
+      "rule_key": "c3",
+      "valid": true
+    },
+    {
+      "rule_key": "c3",
+      "valid": false
+    }
+  ],
+  "expected": {
+    "passed": true,
+    "kind": "mechanical",
+    "fails": [],
+    "warns": [],
+    "fit": []
+  }
+}

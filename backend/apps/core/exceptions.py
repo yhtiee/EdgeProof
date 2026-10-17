@@ -47,4 +47,7 @@ def exception_handler(exc, context):
         codes = exc.get_codes()
         if isinstance(codes, str):
             code = codes
-    return Response({"code": code, "message": message, "fields": fields}, status=response.status_code)
+    # Exceptions may name their own code and add context for the client (e.g. `required`, `server`).
+    code = getattr(exc, "code", None) or code
+    body = {"code": code, "message": message, "fields": fields, **getattr(exc, "extra", {})}
+    return Response(body, status=response.status_code)

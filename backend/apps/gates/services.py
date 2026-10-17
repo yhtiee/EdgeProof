@@ -3,12 +3,18 @@ Gate decisions are made here, by code, and recorded with their evidence
 (spec §8). AI never decides a gate.
 """
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.models import AuditLog
 
 from .models import GATE_DEFAULTS, GateConfig, GatePass
+
+
+def gates_open() -> bool:
+    """True in development only (settings.OPEN_GATES): every lock is lifted for testing."""
+    return bool(getattr(settings, "OPEN_GATES", False))
 
 
 def active_config(gate: int) -> tuple[int, dict]:
@@ -18,25 +24,26 @@ def active_config(gate: int) -> tuple[int, dict]:
     return 1, GATE_DEFAULTS[gate]
 
 
-def active_pass(user, gate: int) -> GatePass | None:
+def active_pass(user, gate: int, strategy_version=None) -> GatePass | None:
     return GatePass.objects.filter(
-        user=user, gate=gate, revoked_at__isnull=True
+        user=user, gate=gate, strategy_version=strategy_version, revoked_at__isnull=True
     ).first()
 
 
-def has_gate(user, gate: int) -> bool:
-    return active_pass(user, gate) is not None
+def has_gate(user, gate: int, strategy_version=None) -> bool:
+    return active_pass(user, gate, strategy_version) is not None
 
 
 @transaction.atomic
-def grant_gate(user, *, gate: int, evidence: dict, override_by=None) -> GatePass:
-    existing = active_pass(user, gate)
+def grant_gate(user, *, gate: int, evidence: dict, override_by=None, strategy_version=None) -> GatePass:
+    existing = active_pass(user, gate, strategy_version)
     if existing:
         return existing
     version, _ = active_config(gate)
     gp = GatePass.objects.create(
         user=user,
         gate=gate,
+        strategy_version=strategy_version,
         passed_at=timezone.now(),
         evidence=evidence,
         config_version=version,
@@ -45,7 +52,7 @@ def grant_gate(user, *, gate: int, evidence: dict, override_by=None) -> GatePass
     AuditLog.record(
         actor_id=override_by.id if override_by else user.id,
         action="gate.override" if override_by else "gate.pass",
-        target=f"user:{user.id}:gate:{gate}",
+        target=f"user:{user.id}:gate:{gate}" + (f":version:{strategy_version.id}" if strategy_version else ""),
         detail={"evidence": evidence, "config_version": version},
     )
     return gp

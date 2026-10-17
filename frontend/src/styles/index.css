@@ -83,6 +83,15 @@
     font-size: 100%;
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
+    /* Keep scrolled-to and focused items clear of the sticky header and the
+       mobile tab bar (WCAG 2.4.11 focus not obscured). */
+    scroll-padding-top: 5rem;
+    scroll-padding-bottom: 9rem;
+  }
+  @media (min-width: 1024px) {
+    html {
+      scroll-padding-bottom: 2rem;
+    }
   }
   body {
     margin: 0;

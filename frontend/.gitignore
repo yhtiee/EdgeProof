@@ -27,3 +27,4 @@ public/lessons/
 # Local secrets
 .env
 content/drafts/
+content/build/

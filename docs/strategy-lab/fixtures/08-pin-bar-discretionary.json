@@ -1,0 +1,142 @@
+{
+  "fixture": "08-pin-bar-discretionary",
+  "teachingFixture": true,
+  "note": "Test data for the clarity engine. Not a recommended strategy.",
+  "style": "Pin bar with one rule kept in the trader's own words",
+  "name": "Pin bar at the London open price",
+  "profile": {
+    "weekly_hours": 10,
+    "sessions": [
+      "london"
+    ],
+    "timezone": "Africa/Lagos"
+  },
+  "version": {
+    "rules": {
+      "schemaVersion": 1,
+      "idea": "Buy bullish pin bars that wick through the London opening price.",
+      "direction": "long",
+      "market": {
+        "instruments": [
+          "EUR/USD"
+        ],
+        "timeframes": [
+          "H1"
+        ],
+        "sessions": [
+          "london"
+        ]
+      },
+      "setup": {
+        "conditions": [
+          {
+            "id": "c1",
+            "type": "candle_pattern",
+            "timeframe": "H1",
+            "params": {
+              "pattern": "bullish_pin_bar",
+              "wick_ratio": 2,
+              "min_range_atr": 0.5
+            }
+          },
+          {
+            "id": "c2",
+            "type": "free_text",
+            "timeframe": "H1",
+            "params": {
+              "text": "The pin bar's wick goes below the 08:00 London opening price and the candle closes above that price.",
+              "override": {
+                "reason": "I mark the opening price by hand on my platform and haven't found a block for it."
+              }
+            }
+          }
+        ]
+      },
+      "entry": {
+        "timeframe": "H1",
+        "trigger": {
+          "type": "stop_beyond_setup",
+          "buffer": {
+            "unit": "pips",
+            "value": 1
+          },
+          "expiry_bars": 2
+        }
+      },
+      "stop": {
+        "rule": {
+          "type": "setup_candle",
+          "buffer": {
+            "unit": "pips",
+            "value": 2
+          }
+        }
+      },
+      "exit": {
+        "target": {
+          "type": "r_multiple",
+          "r": 2
+        }
+      },
+      "no_trade": {
+        "news": {
+          "enabled": true,
+          "before_min": 30,
+          "after_min": 30
+        },
+        "avoid_rollover": true,
+        "no_new_after_friday": "15:00",
+        "other": []
+      }
+    },
+    "risk_plan": {
+      "risk_pct": 0.5,
+      "daily_loss_r": 3,
+      "weekly_loss_r": 6,
+      "max_drawdown_r": 15,
+      "max_open_trades": 2,
+      "max_trades_per_day": 3,
+      "max_currency_risk_pct": 2,
+      "losing_streak": {
+        "losses": 3,
+        "action": "stop_day"
+      }
+    },
+    "cost_model": {
+      "EUR/USD": {
+        "spread_pips": 0.2,
+        "commission_per_lot": 7.0,
+        "slippage_pips": 0.3,
+        "news_slippage_pips": 3.0,
+        "swap_long": -6.5,
+        "swap_short": 1.2,
+        "placeholder": false
+      }
+    }
+  },
+  "examples": [
+    {
+      "rule_key": "c1",
+      "valid": true
+    },
+    {
+      "rule_key": "c1",
+      "valid": false
+    },
+    {
+      "rule_key": "c2",
+      "valid": true
+    },
+    {
+      "rule_key": "c2",
+      "valid": false
+    }
+  ],
+  "expected": {
+    "passed": true,
+    "kind": "discretionary",
+    "fails": [],
+    "warns": [],
+    "fit": []
+  }
+}

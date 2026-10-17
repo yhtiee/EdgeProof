@@ -75,13 +75,15 @@ class Question(BaseModel):
         ORDERING = "ordering"  # Phase 2
         CHART_MARK = "chart_mark"  # Phase 2
 
+    key = models.SlugField(max_length=100, unique=True, null=True, blank=True)  # stable id from content/exams
     type = models.CharField(max_length=24, choices=Type.choices)
     prompt = models.TextField()
     options = models.JSONField(default=list, blank=True)  # [{"key": "a", "text": "..."}]
     answer = models.JSONField()  # never sent to learners (AC-5, §15)
     tolerance = models.FloatField(null=True, blank=True)  # numeric: absolute tolerance
+    unit = models.CharField(max_length=24, blank=True)  # numeric: shown beside the answer box, e.g. "pips"
     explanation = models.TextField(blank=True)  # shown after answering ("why")
-    concept_tags = models.JSONField(default=list, blank=True)
+    concept_tags = models.JSONField(default=list, blank=True)  # lesson slugs this question tests
     status = models.CharField(max_length=16, choices=Publishable.Status.choices, default=Publishable.Status.DRAFT)
     flagged = models.BooleanField(default=False)  # AC-8: pass-rate outlier or confirmed report
 
@@ -107,6 +109,7 @@ class Exam(BaseModel):
         LEVEL = "level"
         PLACEMENT = "placement"
 
+    key = models.SlugField(max_length=80, unique=True, null=True, blank=True)  # m-<module>, l-<level>, p-<level>
     title = models.CharField(max_length=160)
     scope = models.CharField(max_length=16, choices=Scope.choices)
     level = models.ForeignKey(Level, on_delete=models.CASCADE, related_name="exams")

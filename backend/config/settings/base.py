@@ -37,6 +37,16 @@ SECRET_KEY = env("DJANGO_SECRET_KEY") or ("dev-insecure-key" if DEBUG else None)
 if not SECRET_KEY:
     raise RuntimeError("DJANGO_SECRET_KEY is required when DJANGO_DEBUG is off.")
 
+# Development convenience: every gate (lesson order, exams, Strategy Lab, future
+# features) is open so features can be tested without walking the whole path.
+# Only possible with DEBUG on, so a deployed build is always gated. Set
+# OPEN_GATES=false locally to see what learners see.
+OPEN_GATES = DEBUG and env_bool("OPEN_GATES", True)
+
+# The Strategy Lab builder opens once these lessons are complete (founder
+# decision 2026-10-17: after the strategy-design lessons, not after Level 2).
+STRATEGY_LAB_REQUIRED_LESSONS = ["l6-from-an-idea-to-a-rulebook", "l6-writing-rules-anyone-could-follow"]
+
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:5173")
 
@@ -149,6 +159,8 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# Local stand-in for R2 in development (screenshots); never served publicly.
+MEDIA_ROOT = BASE_DIR / "media"
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},

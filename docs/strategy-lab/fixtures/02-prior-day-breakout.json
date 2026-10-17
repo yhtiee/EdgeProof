@@ -1,0 +1,165 @@
+{
+  "fixture": "02-prior-day-breakout",
+  "teachingFixture": true,
+  "note": "Test data for the clarity engine. Not a recommended strategy.",
+  "style": "Breakout of yesterday's high in the London session",
+  "name": "London prior-day breakout",
+  "profile": {
+    "weekly_hours": 10,
+    "sessions": [
+      "london"
+    ],
+    "timezone": "Africa/Lagos"
+  },
+  "version": {
+    "rules": {
+      "schemaVersion": 1,
+      "idea": "Trade closes above yesterday's high during the London morning.",
+      "direction": "long",
+      "market": {
+        "instruments": [
+          "GBP/USD"
+        ],
+        "timeframes": [
+          "H1"
+        ],
+        "sessions": [
+          "london"
+        ]
+      },
+      "setup": {
+        "conditions": [
+          {
+            "id": "c1",
+            "type": "level",
+            "timeframe": "H1",
+            "params": {
+              "level": "prior_day_high",
+              "event": "closes_above"
+            }
+          },
+          {
+            "id": "c2",
+            "type": "time_window",
+            "timeframe": "H1",
+            "params": {
+              "from": "07:00",
+              "to": "12:00",
+              "zone": "Europe/London",
+              "days": [
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri"
+              ]
+            }
+          },
+          {
+            "id": "c3",
+            "type": "atr",
+            "timeframe": "H1",
+            "params": {
+              "period": 14,
+              "relation": "above",
+              "value": 6
+            }
+          }
+        ]
+      },
+      "entry": {
+        "timeframe": "H1",
+        "trigger": {
+          "type": "next_open"
+        }
+      },
+      "stop": {
+        "rule": {
+          "type": "setup_candle",
+          "buffer": {
+            "unit": "pips",
+            "value": 2
+          }
+        }
+      },
+      "exit": {
+        "target": {
+          "type": "r_multiple",
+          "r": 2
+        },
+        "time_exit": {
+          "type": "time",
+          "at": "16:00",
+          "zone": "Europe/London"
+        }
+      },
+      "no_trade": {
+        "news": {
+          "enabled": true,
+          "before_min": 30,
+          "after_min": 30
+        },
+        "avoid_rollover": true,
+        "no_new_after_friday": "15:00",
+        "other": []
+      }
+    },
+    "risk_plan": {
+      "risk_pct": 0.5,
+      "daily_loss_r": 3,
+      "weekly_loss_r": 6,
+      "max_drawdown_r": 15,
+      "max_open_trades": 2,
+      "max_trades_per_day": 3,
+      "max_currency_risk_pct": 2,
+      "losing_streak": {
+        "losses": 3,
+        "action": "stop_day"
+      }
+    },
+    "cost_model": {
+      "GBP/USD": {
+        "spread_pips": 0.2,
+        "commission_per_lot": 7.0,
+        "slippage_pips": 0.3,
+        "news_slippage_pips": 3.0,
+        "swap_long": -6.5,
+        "swap_short": 1.2,
+        "placeholder": false
+      }
+    }
+  },
+  "examples": [
+    {
+      "rule_key": "c1",
+      "valid": true
+    },
+    {
+      "rule_key": "c1",
+      "valid": false
+    },
+    {
+      "rule_key": "c2",
+      "valid": true
+    },
+    {
+      "rule_key": "c2",
+      "valid": false
+    },
+    {
+      "rule_key": "c3",
+      "valid": true
+    },
+    {
+      "rule_key": "c3",
+      "valid": false
+    }
+  ],
+  "expected": {
+    "passed": true,
+    "kind": "mechanical",
+    "fails": [],
+    "warns": [],
+    "fit": []
+  }
+}

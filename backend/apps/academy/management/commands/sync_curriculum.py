@@ -20,11 +20,19 @@ from apps.academy.models import Lesson, Level, Module
 PUBLISHED, DRAFT = Lesson.Status.PUBLISHED, Lesson.Status.DRAFT
 
 
+# The frontend sits beside the backend in this repo.
+FRONTEND = Path(__file__).resolve().parents[5] / "frontend"
+DEFAULT_INDEX = FRONTEND / "public" / "lessons" / "index.json"
+
+
 class Command(BaseCommand):
     help = "Sync levels, modules and lessons from the compiled lesson index."
 
     def add_arguments(self, parser):
-        parser.add_argument("index", type=Path, help="Path to public/lessons/index.json")
+        parser.add_argument(
+            "index", type=Path, nargs="?", default=DEFAULT_INDEX,
+            help=f"Path to public/lessons/index.json (default: {DEFAULT_INDEX})",
+        )
 
     @transaction.atomic
     def handle(self, *args, index: Path, **options):

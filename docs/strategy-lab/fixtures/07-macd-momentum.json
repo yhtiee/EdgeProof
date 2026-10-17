@@ -1,0 +1,140 @@
+{
+  "fixture": "07-macd-momentum",
+  "teachingFixture": true,
+  "note": "Test data for the clarity engine. Not a recommended strategy.",
+  "style": "Momentum: MACD cross above the 100 EMA (with teaching notes)",
+  "name": "4H MACD momentum",
+  "profile": {
+    "weekly_hours": 10,
+    "sessions": [
+      "london",
+      "new_york"
+    ],
+    "timezone": "Africa/Lagos"
+  },
+  "version": {
+    "rules": {
+      "schemaVersion": 1,
+      "idea": "Join momentum when MACD turns up above the 100 EMA.",
+      "direction": "long",
+      "market": {
+        "instruments": [
+          "AUD/USD"
+        ],
+        "timeframes": [
+          "H4"
+        ],
+        "sessions": [
+          "london",
+          "new_york"
+        ]
+      },
+      "setup": {
+        "conditions": [
+          {
+            "id": "c1",
+            "type": "macd",
+            "timeframe": "H4",
+            "params": {
+              "fast": 12,
+              "slow": 26,
+              "signal": 9,
+              "event": "crosses_above_signal"
+            }
+          },
+          {
+            "id": "c2",
+            "type": "price_vs_ma",
+            "timeframe": "H4",
+            "params": {
+              "ma": "ema",
+              "period": 100,
+              "relation": "above"
+            }
+          }
+        ]
+      },
+      "entry": {
+        "timeframe": "H4",
+        "trigger": {
+          "type": "next_open"
+        }
+      },
+      "stop": {
+        "rule": {
+          "type": "fixed",
+          "pips": 40
+        }
+      },
+      "exit": {
+        "target": {
+          "type": "r_multiple",
+          "r": 0.8
+        }
+      },
+      "no_trade": {
+        "news": {
+          "enabled": true,
+          "before_min": 30,
+          "after_min": 30
+        },
+        "avoid_rollover": true,
+        "no_new_after_friday": "15:00",
+        "other": []
+      }
+    },
+    "risk_plan": {
+      "risk_pct": 1.5,
+      "daily_loss_r": 3,
+      "weekly_loss_r": 6,
+      "max_drawdown_r": 15,
+      "max_open_trades": 2,
+      "max_trades_per_day": 3,
+      "max_currency_risk_pct": 2,
+      "losing_streak": {
+        "losses": 3,
+        "action": "stop_day"
+      }
+    },
+    "cost_model": {
+      "AUD/USD": {
+        "spread_pips": 0.2,
+        "commission_per_lot": 7.0,
+        "slippage_pips": 0.3,
+        "news_slippage_pips": 3.0,
+        "swap_long": -6.5,
+        "swap_short": 1.2,
+        "placeholder": false
+      }
+    }
+  },
+  "examples": [
+    {
+      "rule_key": "c1",
+      "valid": true
+    },
+    {
+      "rule_key": "c1",
+      "valid": false
+    },
+    {
+      "rule_key": "c2",
+      "valid": true
+    },
+    {
+      "rule_key": "c2",
+      "valid": false
+    }
+  ],
+  "expected": {
+    "passed": true,
+    "kind": "mechanical",
+    "fails": [],
+    "warns": [
+      "W_RISK_ABOVE_1",
+      "W_STOP_FIXED",
+      "W_TARGET_BELOW_1R"
+    ],
+    "fit": []
+  }
+}
