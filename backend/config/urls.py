@@ -71,6 +71,7 @@ api_v1 = [
     path("ai/tutor", ai.TutorAskView.as_view()),
     # Fundamental Bias Scanner (signed-in users, no gate)
     path("scanner/pairs", scanner.PairsView.as_view()),
+    path("scanner/scoreboard", scanner.ScoreboardView.as_view()),
     path("scanner/pairs/<str:symbol>", scanner.PairDetailView.as_view()),
     path("scanner/pairs/<str:symbol>/history", scanner.PairHistoryView.as_view()),
     path("scanner/currencies", scanner.CurrenciesView.as_view()),

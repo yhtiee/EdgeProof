@@ -124,7 +124,19 @@ class PairScore(BaseModel):
     rank = models.PositiveSmallIntegerField(null=True, blank=True)
     change_wow = models.FloatField(null=True, blank=True)
     close = models.FloatField(null=True, blank=True)  # the pair's latest close at as_of, for history
-    detail = models.JSONField(default=dict, blank=True)  # difference term, trend, retail, agreement
+    detail = models.JSONField(default=dict, blank=True)  # difference term, trend, retail, agreement, board columns
+    # The scoreboard (docs/scanner/scoreboard.md): the 18-column sum, its label, rank and change on the day.
+    board_score = models.IntegerField(null=True, blank=True)
+    # Database defaults keep older app versions, which don't set these, able to save scores.
+    board_label = models.CharField(max_length=16, blank=True, default="", db_default="")
+    board_rank = models.PositiveSmallIntegerField(null=True, blank=True)
+    change_1d = models.IntegerField(null=True, blank=True)
+    # Final bias: the regime score (`score`) blended with the momentum score.
+    momentum = models.FloatField(null=True, blank=True)  # −10…+10; null when too few macro columns have data
+    final_score = models.FloatField(null=True, blank=True)
+    final_label = models.CharField(max_length=16, blank=True, default="", db_default="")
+    final_rank = models.PositiveSmallIntegerField(null=True, blank=True)
+    mixed = models.BooleanField(default=False, db_default=False)  # regime and momentum point opposite ways
 
 
 class Publication(BaseModel):
@@ -177,3 +189,40 @@ class CalendarEvent(BaseModel):
     class Meta(BaseModel.Meta):
         ordering = ["at"]
         constraints = [models.UniqueConstraint(fields=["currency", "title", "at"], name="calendar_event_unique")]
+
+
+class Release(BaseModel):
+    """
+    One data release behind a scoreboard cell. The consensus forecast is the calendar's
+    last figure before the release time (then frozen); the actual is the official first
+    print where we fetch one (FRED for the US), otherwise the "previous" the calendar lists
+    on the next release of the same series. Surveys with no forecast are scored on change.
+    """
+
+    currency = models.ForeignKey(Currency, on_delete=models.CASCADE, related_name="releases")
+    indicator = models.CharField(max_length=16, db_index=True)
+    title = models.CharField(max_length=120)
+    at = models.DateTimeField(db_index=True)
+    forecast = models.FloatField(null=True, blank=True)
+    forecast_text = models.CharField(max_length=40, blank=True)  # as the calendar printed it ("200K", "0.3%")
+    previous = models.FloatField(null=True, blank=True)
+    actual = models.FloatField(null=True, blank=True)
+    actual_source = models.CharField(max_length=60, blank=True)  # "FRED PAYEMS first print", "next release's previous"
+    forecast_source = models.CharField(max_length=40, blank=True)
+
+    class Meta(BaseModel.Meta):
+        ordering = ["at"]
+        constraints = [models.UniqueConstraint(fields=["currency", "title", "at"], name="release_unique")]
+
+
+class CentralBankOutlook(BaseModel):
+    """
+    A house view of the next quarter's rate move (+1 raise, 0 hold, −1 cut), set in the admin.
+    It outranks the market-rate proxy for the scoreboard's rates column until it's older than
+    BOARD_CONFIG["rates"]["outlook_days"].
+    """
+
+    currency = models.OneToOneField(Currency, on_delete=models.CASCADE, related_name="outlook")
+    direction = models.SmallIntegerField(choices=[(1, "Raise"), (0, "Hold"), (-1, "Cut")])
+    note = models.CharField(max_length=300, blank=True)
+    set_on = models.DateField()

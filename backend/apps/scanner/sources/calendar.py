@@ -46,13 +46,18 @@ def parse(data: list[dict]) -> list[Event]:
     return out
 
 
-def fetch_all() -> tuple[list[Event], list[str]]:
-    """This week (required) and next week (only published late in the week; a 404 is normal)."""
-    events, errors = [], []
+def fetch_raw() -> tuple[list[dict], list[str]]:
+    """This week (required) and next week (only published late in the week; a 404 is normal), unfiltered."""
+    raw, errors = [], []
     for i, url in enumerate(CALENDAR_FEEDS):
         try:
-            events.extend(parse(json.loads(get(url, timeout=30, retries=0 if i else 1))))
+            raw.extend(json.loads(get(url, timeout=30, retries=0 if i else 1)))
         except (SourceError, ValueError) as exc:
             if i == 0:
                 errors.append(str(exc)[:200])
-    return events, errors
+    return raw, errors
+
+
+def fetch_all() -> tuple[list[Event], list[str]]:
+    raw, errors = fetch_raw()
+    return parse(raw), errors

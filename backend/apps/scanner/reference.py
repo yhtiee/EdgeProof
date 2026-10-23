@@ -20,6 +20,13 @@ CURRENCIES = [
 ORDER = ["EUR", "GBP", "AUD", "NZD", "USD", "CAD", "CHF", "JPY"]
 PAIRS = [a + b for i, a in enumerate(ORDER) for b in ORDER[i + 1:]]
 
+# Gold is the one instrument beyond the 28 pairs (founder decision 23 Oct 2026). It is stored
+# as a "currency" so its COT and price series fit the same tables, but it has no economy:
+# the regime model scores it from positioning alone, and the scoreboard mirrors USD data.
+METALS = [("XAU", "Gold", "", "088691", 0.0)]  # CFTC 088691: gold, COMEX
+GOLD_PAIRS = ["XAUUSD"]
+ALL_PAIRS = PAIRS + GOLD_PAIRS
+
 FACTORS_CURRENCY = ["cot", "rates", "inflation", "growth", "labour", "business"]
 FACTORS_PAIR = ["trend", "retail"]
 
@@ -182,3 +189,145 @@ CALENDAR_FACTORS = [
     ("growth", ["gdp", "retail sales"]),
     ("business", ["pmi", "business confidence", "ism", "tankan", "ifo", "zew", "sentiment", "confidence", "manufacturing", "services"]),
 ]
+
+# --- Scoreboard (docs/scanner/scoreboard.md) ---------------------------------------------------
+# A second, faster view that follows a published retail method: 18 columns, each a whole number,
+# summed. Technical and sentiment columns are scored per pair; macro columns per currency
+# (−1, 0 or +1) and then base minus quote, so a pair column runs −2…+2.
+
+BOARD_TECH = ["trend", "seasonality", "cot", "crowd"]
+BOARD_MACRO = ["gdp", "mpmi", "spmi", "retail", "cconf", "cpi", "ppi", "pce", "rates", "nfp", "unemp", "claims", "adp", "jolts"]
+BOARD_COLUMNS = BOARD_TECH + BOARD_MACRO
+US_ONLY = {"nfp", "claims", "adp", "jolts"}
+
+# column: (short header, name, what it measures)
+BOARD_TEXT = {
+    "trend": ("Trend", "Price trend", "The 3-day average against the 14-day average, and whether the 14-day average is rising (−2…+2)."),
+    "seasonality": ("Season", "Seasonality", "Whether the pair has risen or fallen in this calendar month on average over the last 10 years (±1)."),
+    "cot": ("COT", "Speculator positioning", "Whether large speculators' long share rose or fell in the latest weekly report, base minus quote."),
+    "crowd": ("Crowd", "Retail crowd", "Contrarian: 60% or more of retail traders long scores −1, 40% or less scores +1."),
+    "gdp": ("GDP", "GDP growth", "The latest GDP release against the consensus forecast."),
+    "mpmi": ("mPMI", "Manufacturing survey", "The latest manufacturing survey against the month before. A free survey stands in where the PMI is licensed."),
+    "spmi": ("sPMI", "Services survey", "The latest services survey against the month before. A free survey stands in where the PMI is licensed."),
+    "retail": ("Retail", "Retail sales", "The latest retail sales release against the consensus forecast."),
+    "cconf": ("Cons. conf.", "Consumer confidence", "The latest consumer confidence or sentiment survey against the consensus forecast."),
+    "cpi": ("CPI", "Consumer prices", "The latest CPI release against the consensus forecast. Hotter than expected scores up: it points to tighter policy."),
+    "ppi": ("PPI", "Producer prices", "The latest producer price release against the consensus forecast."),
+    "pce": ("PCE", "Spending prices", "US core PCE prices against the forecast (household spending for Japan)."),
+    "rates": ("Rates", "Rate outlook", "Whether the central bank is expected to raise (+1), hold (0) or cut (−1) over the next quarter."),
+    "nfp": ("NFP", "US payrolls", "US non-farm payrolls against the forecast."),
+    "unemp": ("Unemp.", "Unemployment rate", "The unemployment rate against the forecast. Lower than expected scores up."),
+    "claims": ("Claims", "US jobless claims", "Weekly US jobless claims against the forecast. Fewer than expected scores up."),
+    "adp": ("ADP", "US private payrolls", "ADP's private payrolls report against the forecast."),
+    "jolts": ("JOLTS", "US job openings", "US job openings against the forecast."),
+}
+
+# How each macro column scores one release: "surprise" = actual vs consensus forecast,
+# "change" = actual vs the previous reading (the method's rule for PMIs), "outlook" = rates.
+# The second value is the direction that's good for the currency.
+INDICATORS = {
+    "gdp": ("surprise", "higher"), "mpmi": ("change", "higher"), "spmi": ("change", "higher"),
+    "retail": ("surprise", "higher"), "cconf": ("surprise", "higher"), "cpi": ("surprise", "higher"),
+    "ppi": ("surprise", "higher"), "pce": ("surprise", "higher"), "rates": ("outlook", "higher"),
+    "nfp": ("surprise", "higher"), "unemp": ("surprise", "lower"), "claims": ("surprise", "lower"),
+    "adp": ("surprise", "higher"), "jolts": ("surprise", "higher"),
+}
+# A release older than this many days no longer counts (about a cycle and a half).
+RELEASE_MAX_AGE = {"W": 21, "M": 75, "Q": 135}
+QUARTERLY_RELEASES = {("AUD", "ppi"), ("NZD", "cpi"), ("NZD", "ppi"), ("NZD", "unemp"), ("NZD", "retail")}
+
+
+def release_freq(currency: str, indicator: str) -> str:
+    if indicator == "claims":
+        return "W"
+    if indicator == "gdp":
+        return "M" if currency == "CAD" else "Q"  # Canada's listed GDP release is monthly
+    return "Q" if (currency, indicator) in QUARTERLY_RELEASES else "M"
+
+
+# Forex Factory event titles that carry each indicator, per currency (calendar feed titles,
+# probed 23 Oct 2026). Releases of any listed title count; the latest one scores.
+RELEASE_TITLES = {
+    "USD": {
+        "gdp": ["Advance GDP q/q", "Prelim GDP q/q", "Final GDP q/q"], "retail": ["Retail Sales m/m"],
+        "cconf": ["Prelim UoM Consumer Sentiment", "Revised UoM Consumer Sentiment", "CB Consumer Confidence"],
+        "cpi": ["CPI y/y"], "ppi": ["PPI m/m"], "pce": ["Core PCE Price Index m/m"], "nfp": ["Non-Farm Employment Change"],
+        "unemp": ["Unemployment Rate"], "claims": ["Unemployment Claims"], "adp": ["ADP Non-Farm Employment Change"],
+        "jolts": ["JOLTS Job Openings"],
+    },
+    "EUR": {
+        "gdp": ["Flash GDP q/q", "Prelim Flash GDP q/q", "Revised GDP q/q"], "retail": ["Retail Sales m/m"],
+        "cconf": ["Consumer Confidence"], "cpi": ["CPI Flash Estimate y/y", "Final CPI y/y"], "ppi": ["PPI m/m"],
+        "unemp": ["Unemployment Rate"],
+    },
+    "GBP": {
+        "gdp": ["Prelim GDP q/q", "Revised GDP q/q", "Final GDP q/q"], "retail": ["Retail Sales m/m"],
+        "cconf": ["GfK Consumer Confidence"], "cpi": ["CPI y/y"], "ppi": ["PPI Output m/m"], "unemp": ["Unemployment Rate"],
+    },
+    "JPY": {
+        "gdp": ["Prelim GDP q/q", "Final GDP q/q"], "retail": ["Retail Sales y/y"], "cconf": ["Consumer Confidence"],
+        "cpi": ["National Core CPI y/y"], "ppi": ["PPI y/y"], "pce": ["Household Spending y/y"], "unemp": ["Unemployment Rate"],
+    },
+    "AUD": {
+        "gdp": ["GDP q/q"], "retail": ["Retail Sales m/m"], "cconf": ["Westpac Consumer Sentiment"],
+        "cpi": ["CPI y/y", "Monthly CPI Indicator y/y"], "ppi": ["PPI q/q"], "unemp": ["Unemployment Rate"],
+    },
+    "NZD": {
+        "gdp": ["GDP q/q"], "retail": ["Retail Sales q/q"], "cpi": ["CPI q/q"], "ppi": ["PPI Input q/q"],
+        "unemp": ["Unemployment Rate"], "mpmi": ["BusinessNZ Manufacturing Index"], "spmi": ["BusinessNZ Services Index"],
+    },
+    "CAD": {
+        "gdp": ["GDP m/m"], "retail": ["Retail Sales m/m"], "cpi": ["CPI m/m"], "ppi": ["IPPI m/m"],
+        "unemp": ["Unemployment Rate"], "spmi": ["Ivey PMI"],
+    },
+    "CHF": {
+        "gdp": ["GDP q/q"], "retail": ["Retail Sales y/y"], "cpi": ["CPI m/m"], "ppi": ["PPI m/m"],
+        "unemp": ["Unemployment Rate"], "mpmi": ["procure.ch Manufacturing PMI"], "spmi": ["procure.ch Services PMI"],
+    },
+}
+# Rate decisions: stored too, so a listed decision's forecast can feed the rates column.
+RATE_TITLES = {
+    "USD": ["Federal Funds Rate"], "EUR": ["Main Refinancing Rate"], "GBP": ["Official Bank Rate"], "JPY": ["BOJ Policy Rate"],
+    "AUD": ["Cash Rate"], "NZD": ["Official Cash Rate"], "CAD": ["Overnight Rate"], "CHF": ["SNB Policy Rate"],
+}
+# (currency, lowercased title) → indicator, for matching calendar events.
+RELEASE_INDEX = {
+    **{(ccy, t.lower()): ind for ccy, m in RELEASE_TITLES.items() for ind, titles in m.items() for t in titles},
+    **{(ccy, t.lower()): "rates" for ccy, titles in RATE_TITLES.items() for t in titles},
+}
+# PMIs with no free source (S&P Global licenses them; checked 23 Oct 2026): the cell stays empty and says why.
+NO_FREE_SOURCE = {("GBP", "mpmi"), ("GBP", "spmi"), ("JPY", "mpmi"), ("JPY", "spmi"), ("AUD", "mpmi"), ("AUD", "spmi"), ("CAD", "mpmi")}
+
+# Official first prints for US releases (FRED): title → (series, transform, scale to the calendar's units).
+# transform: level, diff (change on the month), mom/yoy (% change).
+FRED_ACTUALS = {
+    "Non-Farm Employment Change": ("PAYEMS", "diff", 1000), "ADP Non-Farm Employment Change": ("ADPMNUSNERSA", "diff", 1),
+    "Unemployment Rate": ("UNRATE", "level", 1), "Unemployment Claims": ("ICSA", "level", 1),
+    "JOLTS Job Openings": ("JTSJOL", "level", 1000), "CPI y/y": ("CPIAUCNS", "yoy", 1), "PPI m/m": ("PPIFIS", "mom", 1),
+    "Core PCE Price Index m/m": ("PCEPILFE", "mom", 1), "Retail Sales m/m": ("RSAFS", "mom", 1),
+    "Advance GDP q/q": ("A191RL1Q225SBEA", "level", 1), "Prelim GDP q/q": ("A191RL1Q225SBEA", "level", 1),
+    "Final GDP q/q": ("A191RL1Q225SBEA", "level", 1),
+}
+# Free surveys stored as releases without a forecast (scored on change): (currency, indicator) → (provider, series, title).
+SURVEY_SERIES = {
+    ("USD", "mpmi"): ("fred", "GACDFSA066MSFRBPHI", "Philadelphia Fed manufacturing survey"),
+    ("USD", "spmi"): ("fred", "GABNDIF066MSFRBPHI", "Philadelphia Fed non-manufacturing survey"),
+    ("EUR", "mpmi"): ("eurostat", "BS-ICI-BAL", "EC industry confidence"),
+    ("EUR", "spmi"): ("eurostat", "BS-SCI-BAL", "EC services confidence"),
+}
+
+BOARD_CONFIG = {
+    "trend": {"fast": 3, "slow": 14, "slope_lag": 5},
+    "seasonality": {"years": 10},
+    "crowd": {"long": 60, "short": 40},
+    # Rate outlook: a set house view first, else the next listed decision's forecast, else the
+    # 3-month interbank rate against the policy rate (points either side of `band` count).
+    "rates": {"band": 0.10, "outlook_days": 120, "proxy_days": 75},
+    "gold_rates": {"ma_days": 7},  # gold: the US 2-year yield against its 7-day average
+}
+# Board score → label (≥7 Very Bullish, 4…6 Bullish, −3…3 Neutral, −6…−4 Bearish, ≤−7 Very Bearish).
+BOARD_LABELS = [(7, "very_bullish"), (4, "bullish"), (-3, "neutral"), (-6, "bearish")]
+
+# Final bias = blend of the regime score (the weighted model) and the momentum score (the
+# scoreboard's macro columns and seasonality, scaled to −10…+10). "Mixed" when they disagree.
+MERGE = {"regime": 0.5, "momentum": 0.5, "mixed_at": 2.0, "min_macro_columns": 5}

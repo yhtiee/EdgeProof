@@ -11,6 +11,7 @@ from datetime import timedelta
 from django.db import transaction
 from django.utils import timezone
 
+from . import releases
 from .models import (
     CalendarEvent,
     Currency,
@@ -19,6 +20,7 @@ from .models import (
     Publication,
     RawObservation,
 )
+from .reference import ALL_PAIRS
 from .sources import Row, SourceError, calendar, news
 from .sources.providers import JOBS, SOURCES
 
@@ -78,10 +80,12 @@ def run_news(source: DataSource) -> dict:
 
 
 def run_calendar(source: DataSource) -> dict:
-    """Upsert this week's (and next week's) scheduled releases; keep eight weeks."""
-    events, errors = calendar.fetch_all()
+    """Upsert this week's (and next week's) scheduled releases; keep eight weeks. Scoreboard forecasts ride along."""
+    raw, errors = calendar.fetch_raw()
     if errors:
         raise SourceError("; ".join(errors))
+    releases.capture(raw)  # every impact level: the scoreboard needs low-impact releases too
+    events = calendar.parse(raw)
     currencies = {c.code: c for c in Currency.objects.all()}
     new = updated = 0
     for e in events:
@@ -94,12 +98,20 @@ def run_calendar(source: DataSource) -> dict:
     return {"rows": len(events), "new": new, "updated": updated}
 
 
+def monthly_closes_current() -> bool:
+    """Seasonality needs last month's close; once it's stored, the monthly fetch can wait for the next month."""
+    last_month = (timezone.localdate().replace(day=1) - timedelta(days=1)).replace(day=1)
+    return RawObservation.objects.filter(factor="monthly", period_date__gte=last_month).count() >= len(ALL_PAIRS)
+
+
 def run_source(name: str, *, backfill: bool = False, years: int = 3) -> dict:
     fn, url, takes_start = SOURCES[name]
     source, _ = DataSource.objects.get_or_create(name=name, defaults={"base_url": url})
-    if name in ("news", "calendar"):
+    if name == "twelvedata_monthly" and not backfill and monthly_closes_current():
+        return {"source": name, "ok": True, "skipped": "this month's closes are stored"}
+    if name in ("news", "calendar", "releases"):
         try:
-            result = run_news(source) if name == "news" else run_calendar(source)
+            result = run_news(source) if name == "news" else run_calendar(source) if name == "calendar" else releases.resolve_all()
         except SourceError as exc:
             source.last_error, source.last_error_at = str(exc)[:500], timezone.now()
             source.save(update_fields=["last_error", "last_error_at", "updated_at"])

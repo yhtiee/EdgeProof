@@ -89,7 +89,7 @@ def test_sign_in_required_but_no_gate(seeded):
     res = client().get("/api/v1/scanner/pairs")  # a brand-new user with no lessons or gates
     assert res.status_code == 200
     body = res.json()
-    assert len(body["pairs"]) == 28
+    assert len(body["pairs"]) == 29  # 28 pairs and gold
     assert body["disclaimer"].startswith("Educational analysis")
     assert body["as_of"] == TODAY.isoformat()
 
@@ -104,8 +104,9 @@ def test_eurusd_is_bearish_and_ranked(seeded):
     eurusd = next(p for p in pairs if p["symbol"] == "EURUSD")
     assert eurusd["score"] < -6 and eurusd["label"] == "very_bearish"
     assert eurusd["rank"] == 1  # the strongest bias in this seeded world
-    ranks = [p["rank"] for p in pairs if p["rank"] is not None]
-    assert ranks == sorted(ranks)
+    ranks = [p["final_rank"] for p in pairs if p["final_rank"] is not None]
+    assert ranks == sorted(ranks)  # the list runs most bullish to most bearish on the final bias
+    assert eurusd["final_label"] == "very_bearish" and eurusd["momentum"] is None  # no releases yet: final = regime
 
 
 def test_filters(seeded):

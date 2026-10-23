@@ -1,4 +1,4 @@
-import type { Factor, FactorValue, Label, PairRow, Print } from './api'
+import type { BoardRow, CellDetail, CellStatus, Factor, FactorValue, Label, PairRow, Print } from './api'
 
 /** Display helpers for the scanner. Pure, so they're unit-tested. */
 
@@ -104,21 +104,66 @@ export function parseStale(entry: string) {
 }
 
 /**
- * Bias order: Very Bullish at the top down to Very Bearish, highest score first,
+ * Bias order: Very Bullish at the top down to Very Bearish, highest final score first,
  * so the labels read as bands. Unscored pairs go last.
  */
 export function sortByBias(pairs: PairRow[]): PairRow[] {
-  return [...pairs].sort((a, b) => (a.score === null ? 1 : 0) - (b.score === null ? 1 : 0) || (b.score ?? 0) - (a.score ?? 0) || a.symbol.localeCompare(b.symbol))
+  return [...pairs].sort(
+    (a, b) =>
+      (a.final_score === null ? 1 : 0) - (b.final_score === null ? 1 : 0) || (b.final_score ?? 0) - (a.final_score ?? 0) || a.symbol.localeCompare(b.symbol),
+  )
 }
 
-/** Pair filters for the rankings: label, either currency, and strong labels only. */
+/** Pair filters for the rankings: final label, either currency, and strong labels only. */
 export function filterPairs(pairs: PairRow[], { label, currency, strong }: { label: string; currency: string; strong: boolean }) {
   return pairs.filter(
     (p) =>
-      (!label || p.label === label) &&
+      (!label || p.final_label === label) &&
       (!currency || p.base === currency || p.quote === currency) &&
-      (!strong || p.label === 'very_bullish' || p.label === 'very_bearish'),
+      (!strong || p.final_label === 'very_bullish' || p.final_label === 'very_bearish'),
   )
+}
+
+/** "XAUUSD" → "Gold"; "EURUSD" → "EUR/USD". */
+export function instrumentName(symbol: string): string {
+  return symbol === 'XAUUSD' ? 'Gold' : `${symbol.slice(0, 3)}/${symbol.slice(3)}`
+}
+
+/** A whole-number board value: "+2", "−1", "0", or "—" when there's no data. */
+export function formatInt(n: number | null | undefined): string {
+  if (n === null || n === undefined) return '—'
+  return n > 0 ? `+${n}` : n < 0 ? `${MINUS}${Math.abs(n)}` : '0'
+}
+
+/** Why a board cell is empty, in words. */
+export const CELL_STATUS_TEXT: Record<CellStatus, string> = {
+  ok: '',
+  pending: 'Waiting for a release we have a forecast for',
+  none: 'No free source for this data',
+  na: 'US-only data: not part of this pair',
+  stale: 'The latest release is too old to count',
+  missing: 'Not enough data yet',
+}
+
+/** Board filters: label, an instrument containing a currency (or gold), on the client. */
+export function filterBoard(rows: BoardRow[], { label, currency }: { label: string; currency: string }) {
+  return rows.filter((r) => (!label || r.label === label) && (!currency || r.base === currency || r.quote === currency))
+}
+
+/** A release in words: "3.5 vs 3.4% forecast" or "20.9 vs 37.8 the month before". */
+export function describeRelease(d: CellDetail | undefined): string {
+  if (!d || d.actual === undefined || d.actual === null) return d?.reason ?? (d?.basis as string | undefined) ?? '—'
+  const actual = compact(d.actual)
+  if (d.forecast !== null && d.forecast !== undefined) return `${actual} vs ${d.forecast_text || compact(d.forecast)} forecast`
+  if (d.previous !== null && d.previous !== undefined) return `${actual} vs ${compact(d.previous)} the time before`
+  return actual
+}
+
+/** 194000 → "194K", 7195000 → "7.20M", 3.5 → "3.5". */
+export function compact(v: number): string {
+  const a = Math.abs(v)
+  const s = a >= 1e6 ? `${(a / 1e6).toFixed(2)}M` : a >= 1e4 ? `${Math.round(a / 1e3)}K` : String(Math.round(a * 1000) / 1000)
+  return v < 0 ? `${MINUS}${s}` : s
 }
 
 const grouped = (n: number) => Math.round(Math.abs(n)).toLocaleString('en-GB')

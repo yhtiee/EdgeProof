@@ -8,7 +8,8 @@ from .models import DataSource, ScoringRun
 from .sources.providers import SOURCES
 
 # A source is overdue when it hasn't succeeded within this many days.
-EXPECTED_DAYS = {"cftc": 8, "bis": 2, "oecd": 3, "eurostat": 3, "fred": 3, "snb": 3, "dbnomics": 3, "twelvedata": 2, "myfxbook": 2, "news": 2, "calendar": 2}
+EXPECTED_DAYS = {"cftc": 8, "bis": 2, "oecd": 3, "eurostat": 3, "fred": 3, "fred_us": 3, "snb": 3, "dbnomics": 3, "twelvedata": 2,
+                 "twelvedata_monthly": 35, "myfxbook": 2, "news": 2, "calendar": 2, "releases": 2}
 
 
 def health() -> dict:

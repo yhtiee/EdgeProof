@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PairRow } from './api'
-import { barGeometry, describeFactor, filterPairs, formatPeriod, formatPrint, formatScore, ordinal, parseStale, sortByBias } from './format'
+import { barGeometry, compact, describeFactor, describeRelease, filterPairs, formatInt, formatPeriod, formatPrint, formatScore, instrumentName, ordinal, parseStale, sortByBias } from './format'
 
 describe('scanner format', () => {
   it('formats scores with a real minus and one decimal', () => {
@@ -38,7 +38,7 @@ describe('scanner format', () => {
   })
 
   it('orders pairs from Very Bullish to Very Bearish, unscored last', () => {
-    const row = (symbol: string, score: number | null) => ({ symbol, score }) as PairRow
+    const row = (symbol: string, final_score: number | null) => ({ symbol, final_score }) as PairRow
     expect(sortByBias([row('A', -7), row('B', null), row('C', 2.5), row('D', 6.1), row('E', -3)]).map((p) => p.symbol)).toEqual(['D', 'C', 'E', 'A', 'B'])
   })
 
@@ -56,11 +56,21 @@ describe('scanner format', () => {
 
   it('filters pairs by label, currency and strength', () => {
     const row = (symbol: string, label: PairRow['label']): PairRow => ({
-      symbol, base: symbol.slice(0, 3), quote: symbol.slice(3), score: 0, label, label_text: '', rank: 1, change_wow: 0, agreement: null, stale_factors: [],
+      symbol, base: symbol.slice(0, 3), quote: symbol.slice(3), score: 0, label: 'neutral', label_text: '', rank: 1, change_wow: 0, agreement: null, stale_factors: [],
+      final_score: 0, final_label: label, final_rank: 1, momentum: null, mixed: false, board_score: null,
     })
     const rows = [row('EURUSD', 'very_bearish'), row('USDJPY', 'bullish'), row('GBPCHF', 'neutral')]
     expect(filterPairs(rows, { label: '', currency: 'USD', strong: false }).map((p) => p.symbol)).toEqual(['EURUSD', 'USDJPY'])
     expect(filterPairs(rows, { label: '', currency: '', strong: true }).map((p) => p.symbol)).toEqual(['EURUSD'])
     expect(filterPairs(rows, { label: 'neutral', currency: '', strong: false }).map((p) => p.symbol)).toEqual(['GBPCHF'])
+  })
+
+  it('formats scoreboard values and releases', () => {
+    expect([2, -1, 0, null].map(formatInt)).toEqual(['+2', '−1', '0', '—'])
+    expect(instrumentName('XAUUSD')).toBe('Gold')
+    expect(instrumentName('EURUSD')).toBe('EUR/USD')
+    expect([194000, 7195000, 3.5, -29000].map(compact)).toEqual(['194K', '7.20M', '3.5', '−29K'])
+    expect(describeRelease({ actual: 3.5, forecast: 3.4, forecast_text: '3.4%' })).toBe('3.5 vs 3.4% forecast')
+    expect(describeRelease({ actual: 20.9, forecast: null, previous: 37.8 })).toBe('20.9 vs 37.8 the time before')
   })
 })

@@ -48,6 +48,7 @@ export const router = createBrowserRouter([
             lazy: page(() => import('../features/scanner/ScannerLayout')),
             children: [
               { index: true, lazy: page(() => import('../features/scanner/PairsPage')) },
+              { path: 'scoreboard', lazy: page(() => import('../features/scanner/ScoreboardPage')) },
               { path: 'currencies', lazy: page(() => import('../features/scanner/CurrenciesPage')) },
               { path: 'evidence', lazy: page(() => import('../features/scanner/EvidencePage')) },
             ],

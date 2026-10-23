@@ -33,6 +33,68 @@ export type PairRow = {
   change_wow: number | null
   agreement: Agreement | null
   stale_factors: string[]
+  /** Final bias: the regime `score` blended with momentum (docs/scanner/scoreboard.md). */
+  final_score: number | null
+  final_label: Label
+  final_rank: number | null
+  momentum: number | null
+  mixed: boolean
+  board_score: number | null
+}
+
+// --- Scoreboard (docs/scanner/scoreboard.md) ----------------------------------------------------
+
+export type BoardColumn =
+  | 'trend' | 'seasonality' | 'cot' | 'crowd'
+  | 'gdp' | 'mpmi' | 'spmi' | 'retail' | 'cconf' | 'cpi' | 'ppi' | 'pce' | 'rates' | 'nfp' | 'unemp' | 'claims' | 'adp' | 'jolts'
+
+/** ok: scored · pending: waiting for a release with a forecast · none: no free source · na: US-only data, not this pair · stale · missing */
+export type CellStatus = 'ok' | 'pending' | 'none' | 'na' | 'stale' | 'missing'
+
+export type CellDetail = Record<string, unknown> & {
+  title?: string
+  actual?: number | null
+  forecast?: number | null
+  forecast_text?: string
+  previous?: number | null
+  actual_source?: string
+  at?: string
+  reason?: string
+  basis?: string
+}
+
+export type BoardSide = { score: number | null; status: CellStatus; detail: CellDetail } | null
+
+export type BoardCell = {
+  score: number | null
+  status: CellStatus
+  detail?: CellDetail
+  sides?: { base: BoardSide; quote: BoardSide }
+}
+
+export type BoardRow = {
+  symbol: string
+  base: string
+  quote: string
+  score: number | null
+  label: Label
+  label_text: string
+  rank: number | null
+  change_1d: number | null
+  columns: Partial<Record<BoardColumn, BoardCell>>
+  final_score: number | null
+  final_label: Label
+  regime: number | null
+  momentum: number | null
+  mixed: boolean
+}
+
+export type Scoreboard = RunMeta & {
+  rows: BoardRow[]
+  groups: { tech: BoardColumn[]; macro: BoardColumn[] }
+  columns: Record<BoardColumn, { short: string; name: string; about: string }>
+  merge: { regime: number; momentum: number; mixed_at: number }
+  calendar_link: { label: string; url: string }
 }
 
 export type FactorValue = {
@@ -101,6 +163,9 @@ const STALE = 5 * 60_000
 
 export const usePairs = () =>
   useQuery({ queryKey: ['scanner', 'pairs'], queryFn: () => api<RunMeta & { pairs: PairRow[] }>('/scanner/pairs'), staleTime: STALE, retry: false })
+
+export const useScoreboard = () =>
+  useQuery({ queryKey: ['scanner', 'scoreboard'], queryFn: () => api<Scoreboard>('/scanner/scoreboard'), staleTime: STALE, retry: false })
 
 export const useCurrencies = () =>
   useQuery({

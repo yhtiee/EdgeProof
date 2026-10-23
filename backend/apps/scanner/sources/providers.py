@@ -8,15 +8,15 @@ import io
 import time
 import urllib.parse
 import zipfile
-from datetime import date
+from datetime import date, timedelta
 
 from django.conf import settings
 from django.utils import timezone
 
-from ..reference import CURRENCIES, PAIRS
+from ..reference import ALL_PAIRS, CURRENCIES, METALS
 from . import Row, SourceError, get, get_json, get_text, number, parse_period
 
-COT_CODES = {code: cot for code, _, _, cot, _ in CURRENCIES}
+COT_CODES = {code: cot for code, _, _, cot, _ in CURRENCIES + METALS}
 BIS_AREAS = {"US": "USD", "XM": "EUR", "GB": "GBP", "JP": "JPY", "AU": "AUD", "NZ": "NZD", "CA": "CAD", "CH": "CHF"}
 OECD_AREAS = {"USA": "USD", "EA20": "EUR", "GBR": "GBP", "JPN": "JPY", "AUS": "AUD", "NZL": "NZD", "CAN": "CAD", "CHE": "CHF"}
 
@@ -118,6 +118,8 @@ def oecd_macro(start: date) -> list[Row]:
     out += _oecd_rows(_oecd("OECD.SDD.STES,DSD_STES@DF_CLI,4.1", "USA+EA20+GBR+JPN+AUS+NZL+CAN+CHE.M.BCICP...AA...H", start), "business", "bci")
     # Real GDP growth q/q (euro area comes from Eurostat).
     out += _oecd_rows(_oecd("OECD.SDD.NAD,DSD_NAMAIN1@DF_QNA_EXPENDITURE_GROWTH_OECD,1.1", "Q..USA+GBR+JPN+AUS+NZL+CAN+CHE.S1..B1GQ......G1.", start), "growth", "gdp_qoq")
+    # 3-month interbank rates: the scoreboard's market proxy for the next quarter's policy rate (no UK series).
+    out += _oecd_rows(_oecd("OECD.SDD.STES,DSD_STES@DF_FINMARK,4.0", "USA+EA20+GBR+JPN+AUS+NZL+CAN+CHE.M.IR3TIB.PA.....", start), "rate3m", "ir3tib")
     if not out:
         raise SourceError("OECD returned no rows")
     return out
@@ -178,6 +180,53 @@ def fred_euro_cpi(start: date) -> list[Row]:
     return out
 
 
+def _fred(path: str, **query) -> dict:
+    key = settings.SCANNER["fred_key"]
+    if not key:
+        raise SourceError("FRED_API_KEY is not set")
+    return get_json(f"https://api.stlouisfed.org/fred/{path}?" + urllib.parse.urlencode({**query, "api_key": key, "file_type": "json"}))
+
+
+def fred_us(start: date) -> list[Row]:
+    """The US 2-year Treasury yield, daily (the scoreboard's rates rule for gold)."""
+    d = _fred("series/observations", series_id="DGS2", observation_start=max(start, timezone.localdate() - timedelta(days=120)).isoformat())
+    out = [Row("yield2y", "USD", date.fromisoformat(o["date"]), number(o["value"]), "D", "dgs2") for o in d["observations"] if number(o["value"]) is not None]
+    if not out:
+        raise SourceError("FRED returned no 2-year yields")
+    return out
+
+
+def fred_vintage_dates(series: str, since: date) -> list[date]:
+    d = _fred("series/vintagedates", series_id=series, realtime_start=since.isoformat())
+    return [date.fromisoformat(v) for v in d.get("vintage_dates", [])]
+
+
+def fred_vintage(series: str, day: date, since: date) -> list[tuple[date, float]]:
+    """The series as published on `day` (FRED's real-time vintage), from `since`."""
+    d = _fred("series/observations", series_id=series, realtime_start=day.isoformat(), realtime_end=day.isoformat(), observation_start=since.isoformat())
+    return [(date.fromisoformat(o["date"]), number(o["value"])) for o in d["observations"] if number(o["value"]) is not None]
+
+
+def fred_first_releases(series: str, since: date) -> list[tuple[date, float, date]]:
+    """Each observation's first published value and the day it was published: (period, value, released)."""
+    d = _fred("series/observations", series_id=series, output_type=4, realtime_start=since.isoformat(), realtime_end="9999-12-31",
+              observation_start=(since - timedelta(days=62)).isoformat())
+    return [(date.fromisoformat(o["date"]), number(o["value"]), date.fromisoformat(o["realtime_start"]))
+            for o in d["observations"] if number(o["value"]) is not None]
+
+
+def eurostat_survey(indicator: str, start: date) -> list[tuple[date, float]]:
+    """European Commission business survey balances for the euro area (EA21 from 2026, EA20 before)."""
+    best: dict[str, float] = {}
+    for geo in ("EA20", "EA21"):
+        try:
+            for t, v in _eurostat("ei_bssi_m_r2", f"geo={geo}&indic={indicator}&s_adj=SA", start):
+                best[t] = v  # the later code wins per period
+        except (SourceError, KeyError):
+            continue
+    return sorted((parse_period(t)[0], v) for t, v in best.items())
+
+
 # --- SNB (Swiss CPI y/y) ------------------------------------------------------------------
 
 
@@ -221,7 +270,7 @@ def twelvedata_prices(days: int) -> list[Row]:
     if not key:
         raise SourceError("TWELVEDATA_API_KEY is not set")
     out = []
-    symbols = [f"{p[:3]}/{p[3:]}" for p in PAIRS]
+    symbols = [f"{p[:3]}/{p[3:]}" for p in ALL_PAIRS]
     for i in range(0, len(symbols), 8):  # free tier: 8 credits a minute
         batch = symbols[i:i + 8]
         d = get_json("https://api.twelvedata.com/time_series?" + urllib.parse.urlencode(
@@ -233,6 +282,31 @@ def twelvedata_prices(days: int) -> list[Row]:
                 raise SourceError(f"Twelve Data {sym}: {payload.get('message', 'error')}")
             for v in payload.get("values", []):
                 out.append(Row("trend", sym.replace("/", ""), date.fromisoformat(v["datetime"][:10]), float(v["close"]), "D", "close"))
+        if i + 8 < len(symbols):
+            time.sleep(62)
+    return out
+
+
+def twelvedata_monthly() -> list[Row]:
+    """Monthly open and close for every pair and gold, about 16 years (the scoreboard's seasonality)."""
+    key = settings.SCANNER["twelvedata_key"]
+    if not key:
+        raise SourceError("TWELVEDATA_API_KEY is not set")
+    out = []
+    symbols = [f"{p[:3]}/{p[3:]}" for p in ALL_PAIRS]
+    time.sleep(62)  # runs straight after the daily fetch, which spends this minute's credits
+    for i in range(0, len(symbols), 8):  # free tier: 8 credits a minute
+        batch = symbols[i:i + 8]
+        d = get_json("https://api.twelvedata.com/time_series?" + urllib.parse.urlencode(
+            {"symbol": ",".join(batch), "interval": "1month", "outputsize": 200, "apikey": key, "timezone": "UTC"}), timeout=120)
+        if len(batch) == 1:
+            d = {batch[0]: d}
+        for sym, payload in d.items():
+            if payload.get("status") != "ok":
+                raise SourceError(f"Twelve Data {sym}: {payload.get('message', 'error')}")
+            for v in payload.get("values", []):
+                out.append(Row("monthly", sym.replace("/", ""), date.fromisoformat(v["datetime"][:10]).replace(day=1), float(v["close"]), "M",
+                               "close", {"open": float(v["open"])}))
         if i + 8 < len(symbols):
             time.sleep(62)
     return out
@@ -261,7 +335,7 @@ def myfxbook_sentiment() -> list[Row]:
     today = timezone.localdate()
     out = []
     for s in outlook.get("symbols", []):
-        if s.get("name") in PAIRS:
+        if s.get("name") in ALL_PAIRS:
             sample = int(s.get("longPositions", 0)) + int(s.get("shortPositions", 0))
             out.append(Row("retail", s["name"], today, float(s["longPercentage"]), "D", "long_pct", {"sample": sample, "short_pct": s.get("shortPercentage")}))
     if not out:
@@ -278,16 +352,19 @@ SOURCES = {
     "fred": (fred_euro_cpi, "https://fred.stlouisfed.org", True),
     "snb": (snb_cpi, "https://data.snb.ch", True),
     "dbnomics": (dbnomics_japan_cpi, "https://db.nomics.world", True),
+    "fred_us": (fred_us, "https://fred.stlouisfed.org", True),
     "twelvedata": (twelvedata_prices, "https://twelvedata.com", False),
+    "twelvedata_monthly": (twelvedata_monthly, "https://twelvedata.com", False),  # skipped while this month's closes are in
     "myfxbook": (myfxbook_sentiment, "https://www.myfxbook.com", False),
     "news": (None, "https://www.federalreserve.gov", False),  # central bank feeds; stored by ingest.run_news
     "calendar": (None, "https://www.forexfactory.com/calendar", False),  # stored by ingest.run_calendar
+    "releases": (None, "https://fred.stlouisfed.org", False),  # scoreboard actuals; stored by releases.resolve_all
 }
 # Which sources each scheduled job runs (spec "Scheduled jobs").
 JOBS = {
     "fetch_cot": ["cftc"],
-    "fetch_macro": ["bis", "oecd", "eurostat", "fred", "snb", "dbnomics"],
-    "fetch_prices": ["twelvedata"],
+    "fetch_macro": ["bis", "oecd", "eurostat", "fred", "fred_us", "snb", "dbnomics", "releases"],
+    "fetch_prices": ["twelvedata", "twelvedata_monthly"],
     "fetch_sentiment": ["myfxbook"],
-    "fetch_news": ["news", "calendar"],
+    "fetch_news": ["news", "calendar", "releases"],
 }

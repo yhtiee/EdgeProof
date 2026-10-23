@@ -42,6 +42,9 @@ from .models import (
     ScoringRun,
 )
 from .reference import (
+    BOARD_MACRO,
+    BOARD_TECH,
+    BOARD_TEXT,
     CALENDAR_LINK,
     CURRENCIES,
     DISCLAIMER,
@@ -50,6 +53,8 @@ from .reference import (
     FACTORS_CURRENCY,
     FACTORS_PAIR,
     LABEL_TEXT,
+    MERGE,
+    ORDER,
 )
 from .sources.providers import JOBS
 
@@ -62,7 +67,7 @@ def latest_run() -> ScoringRun:
 
 
 # Bump when a response's shape or wording changes, so cached copies built by older code are ignored.
-CACHE_VERSION = 2
+CACHE_VERSION = 3
 
 
 def cached(request, run: ScoringRun, build):
@@ -104,8 +109,13 @@ class PairsView(APIView):
                     "symbol": sym, "base": p.pair.base.code, "quote": p.pair.quote.code, "score": p.score, **_label(p.label),
                     "rank": p.rank, "change_wow": p.change_wow, "agreement": (p.detail or {}).get("agreement"),
                     "stale_factors": [s.split(":")[1] for s in stale if s.split(":")[0] in (sym, p.pair.base.code, p.pair.quote.code)],
+                    # Final bias: regime (`score`) blended with momentum (docs/scanner/scoreboard.md).
+                    # A run from before the scoreboard has no final bias: fall back to the regime score.
+                    "final_score": p.final_score if p.final_label else p.score,
+                    "final_label": p.final_label or p.label, "final_rank": p.final_rank if p.final_label else None,
+                    "momentum": p.momentum, "mixed": p.mixed, "board_score": p.board_score,
                 })
-            out.sort(key=lambda r: (r["rank"] is None, r["rank"] or 0))
+            out.sort(key=lambda r: (r["final_score"] is None, -(r["final_score"] or 0), r["symbol"]))
             return {**run_meta(run), "pairs": out}
 
         response = cached(request, run, build)
@@ -122,7 +132,7 @@ class PairsView(APIView):
 
 def _currency_block(run: ScoringRun, code: str, sources: dict) -> dict:
     cs = CurrencyScore.objects.select_related("currency").get(run=run, currency__code=code)
-    factors = FactorScore.objects.filter(run=run, currency__code=code)
+    factors = FactorScore.objects.filter(run=run, currency__code=code).exclude(factor__startswith="m_")  # scoreboard cells are served separately
     return {
         "code": code, "name": cs.currency.name, "central_bank": cs.currency.central_bank, "score": cs.score, **_label(cs.label),
         "factors_used": cs.factors_used,
@@ -146,7 +156,7 @@ class CurrenciesView(APIView):
 
         def build():
             sources = _sources()
-            codes = list(CurrencyScore.objects.filter(run=run).values_list("currency__code", flat=True))
+            codes = list(CurrencyScore.objects.filter(run=run, currency__code__in=ORDER).values_list("currency__code", flat=True))  # gold isn't a currency
             blocks = [_currency_block(run, c, sources) for c in codes]
             blocks.sort(key=lambda b: (b["score"] is None, -(b["score"] or 0)))
             return {**run_meta(run), "currencies": blocks, "factor_text": _factor_text()}
@@ -214,6 +224,32 @@ class PairDetailView(APIView):
                 "pair_factors": pf, "contributions": contributions, "factor_text": _factor_text(),
                 "summary": _summary(pair.symbol, ps, base, quote, pf.get("trend", {}), pf.get("retail", {}), contributions),
             }
+
+        return cached(request, run, build)
+
+
+class ScoreboardView(APIView):
+    """GET /scanner/scoreboard: the 18-column board for every pair and gold, most bullish first (docs/scanner/scoreboard.md)."""
+
+    def get(self, request):
+        run = latest_run()
+
+        def build():
+            rows = []
+            for p in PairScore.objects.filter(run=run).select_related("pair__base", "pair__quote"):
+                rows.append({
+                    "symbol": p.pair.symbol, "base": p.pair.base.code, "quote": p.pair.quote.code,
+                    "score": p.board_score, **_label(p.board_label or "insufficient"),
+                    "rank": p.board_rank, "change_1d": p.change_1d, "columns": (p.detail or {}).get("board", {}),
+                    "final_score": p.final_score, "final_label": p.final_label or "insufficient", "regime": p.score,
+                    "momentum": p.momentum, "mixed": p.mixed,
+                })
+            rows.sort(key=lambda r: (r["rank"] is None, r["rank"] or 0))
+            if all(r["score"] is None for r in rows):
+                rows = []  # a run from before the scoreboard: the page says it appears after the next run
+            return {**run_meta(run), "rows": rows, "groups": {"tech": BOARD_TECH, "macro": BOARD_MACRO},
+                    "columns": {c: {"short": t[0], "name": t[1], "about": t[2]} for c, t in BOARD_TEXT.items()},
+                    "merge": MERGE, "calendar_link": {"label": CALENDAR_LINK[0], "url": CALENDAR_LINK[1]}}
 
         return cached(request, run, build)
 

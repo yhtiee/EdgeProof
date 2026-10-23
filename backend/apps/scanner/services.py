@@ -8,13 +8,15 @@ available by then, so live runs and the 3-year replay share one code path.
 
 import bisect
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
+from datetime import timezone as dt_timezone
 
 from django.db import transaction
 from django.utils import timezone
 
-from . import scoring
+from . import scoreboard, scoring
 from .models import (
+    CentralBankOutlook,
     Currency,
     CurrencyScore,
     FactorConfig,
@@ -22,9 +24,26 @@ from .models import (
     Pair,
     PairScore,
     RawObservation,
+    Release,
     ScoringRun,
 )
-from .reference import FACTORS_CURRENCY, QUARTERLY_WINDOW
+from .reference import (
+    BOARD_CONFIG,
+    BOARD_MACRO,
+    FACTORS_CURRENCY,
+    MERGE,
+    METALS,
+    NO_FREE_SOURCE,
+    ORDER,
+    QUARTERLY_WINDOW,
+    RELEASE_MAX_AGE,
+    RELEASE_TITLES,
+    SURVEY_SERIES,
+    US_ONLY,
+    release_freq,
+)
+
+METAL_CODES = {code for code, *_ in METALS}
 
 SNAPSHOT_WEEKDAY = 5  # Saturday, after Friday's COT release
 
@@ -51,6 +70,15 @@ class Data:
             obs = sorted(grouped[(factor, subject, series)], key=lambda o: o.available(factor))
             self.series[(factor, subject)] = obs
         self._avail = {k: [o.available(k[0]) for o in v] for k, v in self.series.items()}
+        # Scoreboard inputs: releases by (currency, indicator) and any house view of each central bank.
+        self.releases: dict[tuple[str, str], list[dict]] = defaultdict(list)
+        for r in Release.objects.select_related("currency"):
+            self.releases[(r.currency.code, r.indicator)].append({
+                "title": r.title, "at": r.at, "actual": r.actual, "forecast": r.forecast, "forecast_text": r.forecast_text,
+                "previous": r.previous, "actual_source": r.actual_source,
+            })
+        self.outlooks = {o.currency.code: {"direction": o.direction, "note": o.note, "set_on": o.set_on}
+                         for o in CentralBankOutlook.objects.select_related("currency")}
 
     def upto(self, factor: str, subject: str, as_of: date) -> list[scoring.Obs]:
         obs = self.series.get((factor, subject), [])
@@ -81,6 +109,12 @@ def compute(as_of: date, data: Data, cfg: dict, *, replay: bool = False) -> dict
     th = {f: c.thresholds for f, c in cfg.items()}
     factor_results: dict[str, dict[str, scoring.FactorResult]] = {}
     for code, c in currencies.items():
+        if code in METAL_CODES:  # gold has no economy: positioning only
+            res = {"cot": scoring.score_cot(data.upto("cot", code, as_of), th["cot"])}
+            obs = data.upto("cot", code, as_of)
+            res["cot"].stale = _stale("cot", obs, as_of, cfg["cot"].refresh_window_days, replay)
+            factor_results[code] = res
+            continue
         res = {
             "cot": scoring.score_cot(data.upto("cot", code, as_of), th["cot"]),
             "rates": scoring.score_rates(data.upto("rates", code, as_of), th["rates"], as_of),
@@ -97,9 +131,14 @@ def compute(as_of: date, data: Data, cfg: dict, *, replay: bool = False) -> dict
                 r.detail["freq"] = obs[-1].freq
                 r.detail["age_days"] = (as_of - obs[-1].period_end()).days
         factor_results[code] = res
-    currency_scores = {code: scoring.currency_score(res, weights) for code, res in factor_results.items()}
+    currency_scores = {
+        code: scoring.currency_score(res, {"cot": weights["cot"]}, max_missing=0, factors=["cot"]) if code in METAL_CODES
+        else scoring.currency_score(res, weights)
+        for code, res in factor_results.items()
+    }
 
     pairs = {}
+    board = compute_board(as_of, data, cfg)
     for p in Pair.objects.select_related("base", "quote"):
         closes = data.upto("trend", p.symbol, as_of)
         trend = scoring.score_trend(closes, th["trend"])
@@ -110,8 +149,96 @@ def compute(as_of: date, data: Data, cfg: dict, *, replay: bool = False) -> dict
         cb, cq = currency_scores[p.base.code][0], currency_scores[p.quote.code][0]
         score, detail = scoring.pair_score(cb, cq, trend, retail)
         detail["agreement"] = scoring.agreement(score, factor_results[p.base.code], factor_results[p.quote.code], trend, retail)
-        pairs[p.symbol] = {"pair": p, "score": score, "trend": trend, "retail": retail, "detail": detail, "close": closes[-1].value if closes else None}
-    return {"factors": factor_results, "currencies": currency_scores, "pairs": pairs, "currency_objs": currencies}
+        row = board["pairs"][p.symbol]
+        mom = scoreboard.momentum(row)
+        final, mixed = scoreboard.final_bias(score, mom, _merge_weights(cfg))
+        detail["board"] = row["columns"]
+        pairs[p.symbol] = {"pair": p, "score": score, "trend": trend, "retail": retail, "detail": detail, "close": closes[-1].value if closes else None,
+                           "board_score": row["score"], "board_label": row["label"], "momentum": mom, "final": final, "mixed": mixed}
+    return {"factors": factor_results, "currencies": currency_scores, "pairs": pairs, "currency_objs": currencies, "board": board}
+
+
+def _merge_weights(cfg: dict) -> dict:
+    """The regime/momentum blend; a FactorConfig row named "momentum" overrides the default weight."""
+    m = cfg.get("momentum")
+    if m is None:
+        return MERGE
+    return {**MERGE, "momentum": m.weight, "regime": 1 - m.weight}
+
+
+# --- Scoreboard (docs/scanner/scoreboard.md) ----------------------------------------------------
+
+
+def _latest(obs: list[scoring.Obs], as_of: date, max_days: int) -> scoring.Obs | None:
+    return obs[-1] if obs and (as_of - obs[-1].period_end()).days <= max_days else None
+
+
+def _rate_cell(code: str, as_of: date, end: datetime, data: Data) -> scoreboard.Cell:
+    cfg = BOARD_CONFIG["rates"]
+    outlook = data.outlooks.get(code)
+    if outlook and (as_of - outlook["set_on"]).days > cfg["outlook_days"]:
+        outlook = None
+    if outlook:
+        outlook = {**outlook, "set_on": outlook["set_on"].isoformat()}
+    upcoming = next((r for r in sorted(data.releases.get((code, "rates"), []), key=lambda r: r["at"])
+                     if end < r["at"] <= end + timedelta(days=14) and r["forecast"] is not None), None)
+    if upcoming:  # the calendar's own "previous" is the current rate in the same convention as its forecast
+        upcoming = {"title": upcoming["title"], "at": upcoming["at"].isoformat(), "forecast": upcoming["forecast"], "previous": upcoming["previous"]}
+    policy = _latest(data.upto("rates", code, as_of), as_of, 30)
+    market = _latest(data.upto("rate3m", code, as_of), as_of, cfg["proxy_days"])
+    current = upcoming["previous"] if upcoming and upcoming.get("previous") is not None else (policy.value if policy else None)
+    return scoreboard.rate_outlook(outlook, upcoming, current, market.value if market else None, cfg)
+
+
+def compute_board(as_of: date, data: Data, cfg: dict) -> dict:
+    """Every currency's macro cells and every pair's 18 columns, as of the end of `as_of` (UTC)."""
+    end = datetime.combine(as_of, time.max, tzinfo=dt_timezone.utc)
+    macro: dict[str, dict[str, scoreboard.Cell]] = {}
+    for code in ORDER:
+        cells = {}
+        for ind in BOARD_MACRO:
+            if ind == "rates":
+                cells[ind] = _rate_cell(code, as_of, end, data)
+            elif code != "USD" and ind in US_ONLY:
+                continue
+            elif (code, ind) in NO_FREE_SOURCE:
+                cells[ind] = scoreboard.Cell(None, "none", {"reason": "Only a licensed PMI exists; no free source."})
+            elif ind not in RELEASE_TITLES.get(code, {}) and (code, ind) not in SURVEY_SERIES:
+                cells[ind] = scoreboard.Cell(None, "none", {"reason": "No free release mapped for this currency."})
+            else:
+                cells[ind] = scoreboard.macro_cell(ind, data.releases.get((code, ind), []), end, RELEASE_MAX_AGE[release_freq(code, ind)])
+        macro[code] = cells
+
+    def reports(code):
+        return [{"period": o.period, "long": o.extra.get("long"), "short": o.extra.get("short")} for o in data.upto("cot", code, as_of)[-2:]]
+
+    cot = {code: scoreboard.cot_change(reports(code)) for code in ORDER}
+    retail_window = cfg["retail"].refresh_window_days if "retail" in cfg else 3
+    rows = {}
+    for p in Pair.objects.select_related("base", "quote"):
+        sym, b, q = p.symbol, p.base.code, p.quote.code
+        closes = [o.value for o in data.upto("trend", sym, as_of)]
+        monthly = [(o.period, o.extra.get("open"), o.value) for o in data.upto("monthly", sym, as_of)]
+        sentiment = _latest(data.upto("retail", sym, as_of), as_of, retail_window)
+        tech = {
+            "trend": scoreboard.trend(closes, BOARD_CONFIG["trend"]),
+            "seasonality": scoreboard.seasonality(monthly, as_of.month, as_of, BOARD_CONFIG["seasonality"]),
+            "crowd": scoreboard.crowd(sentiment.value if sentiment else None, BOARD_CONFIG["crowd"]),
+        }
+        gold_rate = None
+        if b in METAL_CODES:
+            tech["cot"] = scoreboard.cot_gold(reports(b))
+            yields = [o.value for o in data.upto("yield2y", "USD", as_of) if (as_of - o.period).days <= 30]
+            gold_rate = scoreboard.gold_rates(yields, BOARD_CONFIG["gold_rates"])
+        else:
+            cb, cq = cot[b], cot[q]
+            tech["cot"] = (scoreboard.Cell(cb.score - cq.score, detail={"base": cb.detail, "quote": cq.detail})
+                           if cb.score is not None and cq.score is not None else scoreboard.Cell(None, "missing"))
+        rows[sym] = scoreboard.pair_row(b, q, tech, macro, gold_rate)
+    ranks = scoreboard.board_rank({s: r["score"] for s, r in rows.items()})
+    for s, r in rows.items():
+        r["rank"] = ranks.get(s)
+    return {"pairs": rows, "currencies": macro, "cot": cot}
 
 
 def previous_snapshot(as_of: date) -> ScoringRun | None:
@@ -138,21 +265,42 @@ def save_run(as_of: date, result: dict, *, snapshot: bool, replay: bool, version
         before = prev_scores.get(sym)
         changes[sym] = round(p["score"] - before, 2) if p["score"] is not None and before is not None else None
     ranks = scoring.rank({sym: (p["score"], changes[sym]) for sym, p in result["pairs"].items()})
+    # Final bias ranks like the board: most bullish first (signed, not by size).
+    final_ranks = scoreboard.board_rank({sym: p["final"] for sym, p in result["pairs"].items()})
+    board_ranks = scoreboard.board_rank({sym: p["board_score"] for sym, p in result["pairs"].items()})
+    yesterday = (ScoringRun.objects.filter(is_replay=False, as_of__lt=as_of, finished_at__isnull=False).order_by("-as_of", "-finished_at").first()
+                 if not replay else None)
+    before_board = dict(PairScore.objects.filter(run=yesterday).values_list("pair__symbol", "board_score")) if yesterday else {}
     for sym, p in result["pairs"].items():
         for r in (p["trend"], p["retail"]):
             factor_rows.append(FactorScore(run=run, factor=r.factor, pair=p["pair"], raw_value=r.raw, score=r.score, is_stale=r.stale, detail=r.detail))
+        prev_board = before_board.get(sym)
         pair_rows.append(PairScore(
             run=run, pair=p["pair"], score=p["score"], label=scoring.label_for(p["score"]), rank=ranks.get(sym),
             change_wow=changes[sym], close=p["close"], detail=p["detail"],
+            board_score=p["board_score"], board_label=p["board_label"], board_rank=board_ranks.get(sym),
+            change_1d=p["board_score"] - prev_board if prev_board is not None and p["board_score"] is not None else None,
+            momentum=p["momentum"], final_score=p["final"], final_label=scoring.label_for(p["final"]), final_rank=final_ranks.get(sym),
+            mixed=p["mixed"],
         ))
+    for code, cells in result["board"]["currencies"].items():
+        ccy = result["currency_objs"][code]
+        for ind, cell in cells.items():
+            factor_rows.append(FactorScore(run=run, factor=f"m_{ind}", currency=ccy, score=cell.score, raw_value=cell.detail.get("actual"),
+                                           is_stale=cell.status == "stale", detail={"status": cell.status, **_jsonable(cell.detail)}))
     FactorScore.objects.bulk_create(factor_rows)
     CurrencyScore.objects.bulk_create(currency_rows)
     PairScore.objects.bulk_create(pair_rows)
-    stale = sorted({f"{fs.currency.code if fs.currency else fs.pair.symbol}:{fs.factor}" for fs in factor_rows if fs.is_stale})
+    stale = sorted({f"{fs.currency.code if fs.currency else fs.pair.symbol}:{fs.factor}" for fs in factor_rows
+                    if fs.is_stale and not fs.factor.startswith("m_")})  # scoreboard cells carry their own status
     run.notes = {"stale": stale, "insufficient": [c.currency.code for c in currency_rows if c.score is None]}
     run.finished_at = timezone.now()
     run.save(update_fields=["notes", "finished_at", "updated_at"])
     return run
+
+
+def _jsonable(d: dict) -> dict:
+    return {k: v.isoformat() if isinstance(v, (date, datetime)) else v for k, v in d.items()}
 
 
 def run_scoring(as_of: date | None = None, *, snapshot: bool | None = None) -> ScoringRun:

@@ -182,13 +182,16 @@ def test_explain_blocks(extras, fake_ai, settings):
 
 def test_news_and_calendar_ingest(monkeypatch, seeded):  # noqa: F811 (fixture)
     monkeypatch.setattr(news, "fetch_all", lambda: (news.parse(RSS, "JPY"), []))
-    monkeypatch.setattr(calendar, "fetch_all", lambda: (calendar.parse([
+    monkeypatch.setattr(calendar, "fetch_raw", lambda: ([
         {"title": "CPI y/y", "country": "USD", "date": "2026-10-14T08:30:00-04:00", "impact": "High", "forecast": "3.6%", "previous": "3.4%"},
-    ]), []))
-    from apps.scanner import ingest
+    ], []))
+    from apps.scanner import ingest, releases
+
+    for name in ("fred_vintage_dates", "fred_vintage", "fred_first_releases", "eurostat_survey"):
+        monkeypatch.setattr(releases, name, lambda *a, **k: [])  # no network: nothing published yet
 
     first = ingest.run_job("fetch_news")
-    assert [r["ok"] for r in first] == [True, True]
+    assert [r["ok"] for r in first] == [True, True, True]  # news, calendar, scoreboard releases
     assert Publication.objects.count() == 1  # untagged items dropped
     again = ingest.run_job("fetch_news")
     assert again[0]["new"] == 0 and again[1]["updated"] == 1

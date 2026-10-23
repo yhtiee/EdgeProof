@@ -221,10 +221,11 @@ def label_for(score: float | None) -> str:
     return "very_bearish"
 
 
-def currency_score(results: dict[str, FactorResult], weights: dict[str, float], max_missing: int = 2) -> tuple[float | None, int]:
-    """C = Σ w·f / (2·Σ w) × 10 over the factors present; more than `max_missing` missing → insufficient."""
+def currency_score(results: dict[str, FactorResult], weights: dict[str, float], max_missing: int = 2,
+                   factors: list[str] = FACTORS_CURRENCY) -> tuple[float | None, int]:
+    """C = Σ w·f / (2·Σ w) × 10 over the factors present; more than `max_missing` of `factors` missing → insufficient."""
     used = {f: r for f, r in results.items() if f in weights and r.score is not None and not r.stale}
-    missing = len(FACTORS_CURRENCY) - len(used)
+    missing = len(factors) - len(used)
     if missing > max_missing or not used:
         return None, len(used)
     total_w = sum(weights[f] for f in used)
