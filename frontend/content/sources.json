@@ -13,8 +13,8 @@
     "author": "Nassim Nicholas Taleb",
     "title": "Fooled by Randomness",
     "year": 2001,
-    "access": "paid",
-    "url": "https://openlibrary.org/search?q=Fooled+by+Randomness+Taleb",
+    "access": "free",
+    "url": "https://dl.fxf1.com/books/english/Taleb___Nassim_-_Fooled_by_Randomness.pdf",
     "about": "How luck is mistaken for skill in markets; survivorship bias; why good results from a small sample can be noise."
   },
   "douglas-trading-in-the-zone": {
@@ -22,8 +22,8 @@
     "author": "Mark Douglas",
     "title": "Trading in the Zone",
     "year": 2000,
-    "access": "paid",
-    "url": "https://openlibrary.org/search?q=Trading+in+the+Zone+Mark+Douglas",
+    "access": "free",
+    "url": "https://dl.fxf1.com/books/english/Trading_in_the_Zone.pdf",
     "about": "Trading psychology: thinking in probabilities, accepting risk before entering, and consistency as a mindset. Douglas lists 'five fundamental truths': anything can happen; you don't need to know what will happen next to make money; wins and losses are randomly distributed for any given edge; an edge is only a higher probability of one outcome over another; every moment in the market is unique."
   },
   "douglas-disciplined-trader": {
@@ -49,8 +49,8 @@
     "author": "John J. Murphy",
     "title": "Technical Analysis of the Financial Markets",
     "year": 1999,
-    "access": "paid",
-    "url": "https://openlibrary.org/search?q=Technical+Analysis+of+the+Financial+Markets+Murphy",
+    "access": "free",
+    "url": "https://dn710707.ca.archive.org/0/items/JohnJ.MurphyTechnicalAnalysisOfTheFinancialMarkets/John_J._Murphy_-_Technical_Analysis_Of_The_Financial_Markets.pdf",
     "about": "Reference text on chart analysis: trends, support and resistance, chart patterns, moving averages, oscillators and intermarket analysis."
   },
   "nison-candlesticks": {
@@ -79,6 +79,15 @@
     "access": "paid",
     "url": "https://openlibrary.org/search?q=Market+Wizards+Schwager",
     "about": "Interviews with successful futures, currency and stock traders; recurring themes of risk control, discipline and individual methods."
+  },
+  "schwager-stock-market-wizards": {
+    "kind": "book",
+    "author": "Jack D. Schwager",
+    "title": "Stock Market Wizards",
+    "year": 2001,
+    "access": "free",
+    "url": "https://dl.fxf1.com/files/books/english/Jack%20Schwager%20-%20Stock%20Market%20Wizards.pdf",
+    "about": "Interviews with successful stock traders; recurring themes of risk control, discipline, persistence and finding a method that fits the trader."
   },
   "schwager-new-market-wizards": {
     "kind": "book",
