@@ -1,4 +1,4 @@
-import type { BoardRow, CellDetail, CellStatus, Factor, FactorValue, Label, PairRow, Print } from './api'
+import type { BoardRow, CellDetail, CellStatus, Factor, FactorValue, Label, Market, PairRow, Print } from './api'
 
 /** Display helpers for the scanner. Pure, so they're unit-tested. */
 
@@ -114,19 +114,43 @@ export function sortByBias(pairs: PairRow[]): PairRow[] {
   )
 }
 
-/** Pair filters for the rankings: final label, either currency, and strong labels only. */
-export function filterPairs(pairs: PairRow[], { label, currency, strong }: { label: string; currency: string; strong: boolean }) {
+/** The market filter, in menu order. */
+export const MARKET_OPTIONS: { value: Market; label: string }[] = [
+  { value: 'forex', label: 'Forex' },
+  { value: 'metal', label: 'Metals' },
+  { value: 'index', label: 'Indices' },
+  { value: 'stock', label: 'Stocks' },
+  { value: 'crypto', label: 'Crypto' },
+]
+
+/** The currency filter only means something for FX pairs and gold. */
+export const hasCurrencies = (market: string) => !market || market === 'forex' || market === 'metal'
+
+type RowFilters = { market?: string; label: string; currency: string }
+
+/** Rankings filters: market, final label, either currency, and strong labels only. */
+export function filterPairs(pairs: PairRow[], { market = '', label, currency, strong }: RowFilters & { strong: boolean }) {
   return pairs.filter(
     (p) =>
+      (!market || p.market === market) &&
       (!label || p.final_label === label) &&
       (!currency || p.base === currency || p.quote === currency) &&
       (!strong || p.final_label === 'very_bullish' || p.final_label === 'very_bearish'),
   )
 }
 
-/** "XAUUSD" → "Gold"; "EURUSD" → "EUR/USD". */
-export function instrumentName(symbol: string): string {
-  return symbol === 'XAUUSD' ? 'Gold' : `${symbol.slice(0, 3)}/${symbol.slice(3)}`
+const CURRENCY_CODES = new Set(['EUR', 'GBP', 'AUD', 'NZD', 'USD', 'CAD', 'CHF', 'JPY'])
+
+/**
+ * What to call an instrument: the server's name when the row has one ("S&P 500", "Apple",
+ * "Bitcoin", "EUR/USD"), else from the symbol: "XAUUSD" → "Gold", "EURUSD" → "EUR/USD",
+ * and anything else as it is.
+ */
+export function instrumentName(symbol: string, name?: string): string {
+  if (name) return name
+  if (symbol === 'XAUUSD') return 'Gold'
+  const [a, b] = [symbol.slice(0, 3), symbol.slice(3)]
+  return symbol.length === 6 && CURRENCY_CODES.has(a) && CURRENCY_CODES.has(b) ? `${a}/${b}` : symbol
 }
 
 /** A whole-number board value: "+2", "−1", "0", or "—" when there's no data. */
@@ -145,9 +169,11 @@ export const CELL_STATUS_TEXT: Record<CellStatus, string> = {
   missing: 'Not enough data yet',
 }
 
-/** Board filters: label, an instrument containing a currency (or gold), on the client. */
-export function filterBoard(rows: BoardRow[], { label, currency }: { label: string; currency: string }) {
-  return rows.filter((r) => (!label || r.label === label) && (!currency || r.base === currency || r.quote === currency))
+/** Board filters: market, label, an instrument containing a currency (or gold), on the client. */
+export function filterBoard(rows: BoardRow[], { market = '', label, currency }: RowFilters) {
+  return rows.filter(
+    (r) => (!market || r.market === market) && (!label || r.label === label) && (!currency || r.base === currency || r.quote === currency),
+  )
 }
 
 /** A release in words: "3.5 vs 3.4% forecast" or "20.9 vs 37.8 the month before". */
@@ -164,6 +190,13 @@ export function compact(v: number): string {
   const a = Math.abs(v)
   const s = a >= 1e6 ? `${(a / 1e6).toFixed(2)}M` : a >= 1e4 ? `${Math.round(a / 1e3)}K` : String(Math.round(a * 1000) / 1000)
   return v < 0 ? `${MINUS}${s}` : s
+}
+
+/** A close at a sensible precision: 1.08423, 157.230, 6,012.45, 91,234; small coins keep their decimals (0.1834). */
+export function formatPrice(v: number): string {
+  const a = Math.abs(v)
+  if (a >= 1000) return v.toLocaleString('en-GB', { maximumFractionDigits: a >= 10000 ? 0 : 2, minimumFractionDigits: a >= 10000 ? 0 : 2 })
+  return v.toFixed(a >= 20 ? 3 : a >= 0.1 ? 5 : 6)
 }
 
 const grouped = (n: number) => Math.round(Math.abs(n)).toLocaleString('en-GB')
@@ -190,7 +223,7 @@ export function formatPrint(factor: Factor, p: Print): { value: string; note?: s
     case 'business':
       return { value: v.toFixed(1), note: v > 100 ? 'above the long-run average' : v < 100 ? 'below the long-run average' : undefined }
     case 'trend':
-      return { value: v.toFixed(v >= 20 ? 3 : 5) }
+      return { value: formatPrice(v) }
     case 'retail':
       return { value: `${v.toFixed(0)}% long`, note: p.sample != null ? `${p.sample.toLocaleString('en-GB')} traders` : undefined }
   }

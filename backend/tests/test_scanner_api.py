@@ -11,7 +11,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-from apps.scanner import services
+from apps.scanner import explain, services
 from apps.scanner.models import (
     Currency,
     DataSource,
@@ -20,6 +20,7 @@ from apps.scanner.models import (
     RawObservation,
     ScoringRun,
 )
+from apps.scanner.views import latest_run
 
 pytestmark = pytest.mark.django_db
 
@@ -89,7 +90,7 @@ def test_sign_in_required_but_no_gate(seeded):
     res = client().get("/api/v1/scanner/pairs")  # a brand-new user with no lessons or gates
     assert res.status_code == 200
     body = res.json()
-    assert len(body["pairs"]) == 29  # 28 pairs and gold
+    assert len(body["pairs"]) == 59  # 28 pairs, gold, and 10 each of indices, stocks and coins
     assert body["disclaimer"].startswith("Educational analysis")
     assert body["as_of"] == TODAY.isoformat()
 
@@ -176,6 +177,54 @@ def test_status_and_evidence(seeded):
     assert all(not s["ok"] for s in status["sources"])  # nothing fetched in tests
     ev = c.get("/api/v1/scanner/evidence").json()
     assert ev["snapshots"] == 1 and set(ev["horizons"]) == {"1", "4", "12"}
+
+
+def test_markets_and_the_instrument_scorecard(seeded):
+    c = client()
+    rows = c.get("/api/v1/scanner/pairs").json()["pairs"]
+    assert {p["market"] for p in rows} == {"forex", "metal", "index", "stock", "crypto"}
+    indices = c.get("/api/v1/scanner/pairs?market=index").json()["pairs"]
+    assert len(indices) == 10 and all(p["base"] is None and p["quote"] is None and p["home"] for p in indices)
+    spx = next(p for p in indices if p["symbol"] == "SPX500")
+    assert spx["name"] == "S&P 500" and spx["proxy"] == "SPY" and spx["home"] == "USD"
+    d = c.get("/api/v1/scanner/pairs/spx500").json()
+    assert d["market"] == "index" and d["economy_name"] == "US" and d["rank_of"] == 58  # every scored row; gold has no positioning data here
+    f = d["home_block"]["factors"]
+    assert "cot" not in f  # the dollar's positioning says nothing about the S&P 500
+    # Hot, rising US inflation and a recent hike score +2 for the dollar but -2 for stocks; growth, jobs and confidence count as they are.
+    assert (f["inflation"]["score"], f["inflation"]["equity_score"]) == (2, -2)
+    assert (f["rates"]["score"], f["rates"]["equity_score"]) == (2, -2)
+    assert all(f[k]["equity_score"] == 2 for k in ("growth", "labour", "business"))
+    # E = (1.5*-2 - 2 + 2 + 2 + 2) / (2 * 5.5) * 10; no trend, crowd or futures data in this world, so the score is E.
+    assert d["economy"] == pytest.approx(10 / 11, abs=0.01) and d["score"] == pytest.approx(10 / 11, abs=0.01)
+    assert sum(v for v in d["contributions"].values() if v is not None) == pytest.approx(d["score"], abs=0.05)
+    assert d["summary"].startswith("S&P 500 is Neutral") and "US economy" in d["summary"]
+    assert c.get("/api/v1/scanner/calendar/SPX500").status_code == 200
+
+
+def test_coin_with_futures_positioning(seeded):
+    src = DataSource.objects.get(name="test")
+    for i in range(12):  # Bitcoin futures: speculators adding longs every week, so the latest report ranks top
+        obs(src, "cot", "BTCUSD", TODAY - timedelta(weeks=12 - i, days=-1), 1000 + i * 100, "W", extra={"long": 2000 + i * 100, "short": 1000})
+    services.run_scoring(TODAY, snapshot=True)
+    cache.clear()
+    c = client()
+    d = c.get("/api/v1/scanner/pairs/BTCUSD").json()
+    assert d["market"] == "crypto" and d["has_cot"] is True and d["pair_factors"]["cot"]["score"] == 2
+    # E = (1.5*-2 - 2 + 2 + 2 + 2 + 1.5*2) / (2 * 7) * 10
+    assert d["economy"] == pytest.approx(40 / 14, abs=0.01) and d["label"] == "bullish"
+    assert d["contributions"]["cot"] == pytest.approx(1.5 * 2 / 14 * 10, abs=0.01)
+    cot = c.get("/api/v1/scanner/factor/BTCUSD/cot").json()
+    assert [s["code"] for s in cot["sides"]] == ["BTCUSD"] and cot["sides"][0]["observations"][0]["long"] == 3100
+    infl = c.get("/api/v1/scanner/factor/btcusd/inflation").json()
+    assert [s["code"] for s in infl["sides"]] == ["USD"] and infl["equity_sign"] == -1
+    assert c.get("/api/v1/scanner/factor/AAPL/cot").status_code == 404  # no futures contract for a single stock
+    board = next(r for r in c.get("/api/v1/scanner/scoreboard").json()["rows"] if r["symbol"] == "BTCUSD")
+    assert board["columns"]["cot"]["score"] == 1
+    # The AI's data block names the coin, says how the economy is read, and covers its own positioning.
+    text = explain.context(latest_run(), "BTCUSD", None)
+    assert "Bitcoin (crypto coin)" in text and "other way round" in text and "Speculator positioning" in text
+    assert "Inflation, USD: factor score +2" in explain.context(latest_run(), "BTCUSD", "inflation")
 
 
 def sign(body=b""):

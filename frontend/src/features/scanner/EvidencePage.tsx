@@ -121,7 +121,7 @@ function Report({ ev, h, setH }: { ev: Evidence; h: Horizon; setH: (h: Horizon) 
           <li>Past weeks are a replay: today&apos;s rules applied to the data that was out at the time, by estimated release dates.</li>
           <li>Economic figures are today&apos;s revised values, not the first releases, so the past looks a little cleaner than it was.</li>
           <li>Retail sentiment has no free history, so replayed weeks score without it.</li>
-          <li>The 28 pairs share 8 currencies, so the cases overlap and are not independent. Small counts swing a lot.</li>
+          <li>The 28 pairs share 8 currencies, and most indices, stocks and coins share the US economy, so the cases overlap and are not independent. Small counts swing a lot.</li>
           <li>Neutral pairs still lean slightly one way; &quot;labelled way&quot; means the direction of the score.</li>
         </ul>
       </div>

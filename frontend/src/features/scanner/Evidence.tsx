@@ -4,7 +4,7 @@ import { Banner } from '../../components/ui'
 import { BottomSheet } from '../../components/ui/BottomSheet'
 import { useCalendar, useFactorEvidence, type CalendarItem, type EvidenceSide, type Factor, type Publication } from './api'
 import { FactorScoreTag } from './factor'
-import { formatDate, formatPeriod, formatPrint } from './format'
+import { formatDate, formatPeriod, formatPrint, instrumentName } from './format'
 import { ExplainPanel } from './Explain'
 import { StaleBadge } from './parts'
 
@@ -14,7 +14,7 @@ import { StaleBadge } from './parts'
  * central bank has published on it, and the scheduled releases that could move
  * it next. Opens as a bottom sheet on phones and a side sheet on desktop.
  */
-const pairName = (s: string) => (s.length === 6 ? `${s.slice(0, 3)}/${s.slice(3)}` : s)
+const pairName = (s: string) => instrumentName(s)
 
 export function EvidenceButton({ subject, factor, name }: { subject: string; factor: Factor; name: string }) {
   const [open, setOpen] = useState(false)
@@ -45,8 +45,15 @@ function EvidenceBody({ subject, factor }: { subject: string; factor: Factor }) 
     <div className="grid gap-8">
       <p className="text-small text-muted">{d.about}</p>
       <ExplainPanel subject={subject} factor={factor} label="Explain it simply" />
+      {d.equity_sign !== undefined && (
+        <p className="rounded-md border border-border bg-surface p-3 text-small text-muted">
+          {d.equity_sign < 0
+            ? `For ${pairName(subject)} this counts the other way round: the score below is the ${d.sides[0]?.code} reading, and a stock market takes it with the opposite sign.`
+            : `For ${pairName(subject)} this counts as it is: the score below is the ${d.sides[0]?.code} reading.`}
+        </p>
+      )}
       {d.sides.map((side) => (
-        <Side key={side.code} factor={factor} side={side} showCode={d.sides.length > 1 || subject.length === 3} />
+        <Side key={side.code} factor={factor} side={side} showCode={d.sides.length > 1 || subject.length === 3 || side.code !== subject} />
       ))}
       {d.calendar && d.calendar.length > 0 && <Calendar events={d.calendar} link={d.calendar_link} />}
       <p className="text-caption font-semibold text-muted">{d.disclaimer}</p>

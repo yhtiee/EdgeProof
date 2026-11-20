@@ -1,7 +1,9 @@
 """
-Central bank publications (evidence panel): press releases, decisions, minutes and
-speeches from each bank's own RSS or Atom feed. Primary sources only, no news API.
-Each item is tagged with the factors it speaks to; untagged items are dropped.
+Official publications: press releases, decisions, minutes and speeches from each central
+bank's own RSS or Atom feed, plus statistics agencies' release feeds (docs/news.md).
+Primary sources only, no news API. Each item is tagged with the factors it speaks to (the
+scanner's evidence uses only tagged bank items) and a kind for the News headlines;
+housekeeping items (bank notes, appointments, data portals) are dropped.
 """
 
 import html
@@ -11,7 +13,14 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 
-from ..reference import CENTRAL_BANK_FEEDS, CURRENCIES, NEWS_EXCLUDE, NEWS_TOPICS
+from ..reference import (
+    CENTRAL_BANK_FEEDS,
+    CURRENCIES,
+    NEWS_EXCLUDE,
+    NEWS_EXTRA_FEEDS,
+    NEWS_KINDS,
+    NEWS_TOPICS,
+)
 from . import SourceError, get
 
 BANK = {code: bank for code, _, bank, _, _ in CURRENCIES}
@@ -30,6 +39,9 @@ class Item:
     summary: str = ""
     topics: list[str] = field(default_factory=list)
     source: str = ""
+    kind: str = "press"
+    publisher: str = "bank"  # bank | statistics
+    housekeeping: bool = False
 
 
 def _local(tag: str) -> str:
@@ -54,14 +66,28 @@ def _date(text: str) -> datetime | None:
     return d if d.tzinfo else d.replace(tzinfo=UTC)
 
 
-def topics_for(text: str) -> list[str]:
+def is_housekeeping(text: str) -> bool:
     lower = text.lower()
-    if any(word in lower for word in NEWS_EXCLUDE):
+    return any(word in lower for word in NEWS_EXCLUDE)
+
+
+def topics_for(text: str) -> list[str]:
+    if is_housekeeping(text):
         return []
+    lower = text.lower()
     return [f for f, rx in TOPIC_RE.items() if rx.search(lower)]
 
 
-def parse(xml: bytes, currency: str) -> list[Item]:
+def kind_for(title: str, default: str = "press") -> str:
+    """What sort of publication a headline is, from its title; the feed's default when the title doesn't say."""
+    lower = title.lower()
+    for kind, words in NEWS_KINDS:
+        if any(w in lower for w in words):
+            return kind
+    return default
+
+
+def parse(xml: bytes, currency: str, source: str = "", publisher: str = "bank", default_kind: str = "press") -> list[Item]:
     """Items from an RSS 2.0, RSS 1.0 (RDF) or Atom document."""
     try:
         root = ET.fromstring(xml)
@@ -96,17 +122,20 @@ def parse(xml: bytes, currency: str) -> list[Item]:
             summary = ""  # some feeds repeat the title as the description
         if len(summary) > 400:
             summary = summary[:400].rsplit(" ", 1)[0] + "…"
-        out.append(Item(currency, title[:300], url[:500], when, summary, topics_for(f"{title} {summary}"), BANK[currency]))
+        text = f"{title} {summary}"
+        # A statistics agency's own release is data unless its title says otherwise (a report, a survey).
+        out.append(Item(currency, title[:300], url[:500], when, summary, topics_for(text), source or BANK[currency],
+                        kind_for(title, default_kind), publisher, is_housekeeping(text)))
     return out
 
 
 def fetch_all() -> tuple[list[Item], list[str]]:
     """Every item from every feed, and the feeds that failed (one failure doesn't stop the rest)."""
     items, errors = [], []
-    for code, urls in CENTRAL_BANK_FEEDS.items():
-        for url in urls:
-            try:
-                items.extend(parse(get(url, timeout=30), code))
-            except SourceError as exc:
-                errors.append(str(exc)[:200])
+    feeds = [(code, url, "", "bank", "press") for code, urls in CENTRAL_BANK_FEEDS.items() for url in urls] + NEWS_EXTRA_FEEDS
+    for code, url, source, publisher, default_kind in feeds:
+        try:
+            items.extend(parse(get(url, timeout=30), code, source, publisher, default_kind))
+        except SourceError as exc:
+            errors.append(str(exc)[:200])
     return items, errors

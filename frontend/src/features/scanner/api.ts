@@ -22,10 +22,22 @@ export type RunMeta = {
 
 export type Agreement = { agree: number; of: number }
 
-export type PairRow = {
+/** forex and metal rows are pairs with a base and quote; index, stock and crypto rows read a home economy instead. */
+export type Market = 'forex' | 'metal' | 'index' | 'stock' | 'crypto'
+
+/** Who a row is: FX pairs and gold have currencies; indices, stocks and coins have a home economy (and indices an ETF that tracks them). */
+export type Identity = {
   symbol: string
-  base: string
-  quote: string
+  name: string
+  market: Market
+  base: string | null
+  quote: string | null
+  home: string | null
+  /** The ETF whose prices stand in for an index ("SPY"), or "". */
+  proxy: string
+}
+
+export type PairRow = Identity & {
   score: number | null
   label: Label
   label_text: string
@@ -69,13 +81,11 @@ export type BoardCell = {
   score: number | null
   status: CellStatus
   detail?: CellDetail
-  sides?: { base: BoardSide; quote: BoardSide }
+  /** Pairs: each currency's cell. Indices, stocks and coins: the home economy's cell and how it's read (−1 flips it). */
+  sides?: { base?: BoardSide; quote?: BoardSide; home?: BoardSide; sign?: 1 | -1 }
 }
 
-export type BoardRow = {
-  symbol: string
-  base: string
-  quote: string
+export type BoardRow = Identity & {
   score: number | null
   label: Label
   label_text: string
@@ -94,6 +104,7 @@ export type Scoreboard = RunMeta & {
   groups: { tech: BoardColumn[]; macro: BoardColumn[] }
   columns: Record<BoardColumn, { short: string; name: string; about: string }>
   merge: { regime: number; momentum: number; mixed_at: number }
+  markets: Record<Market, string>
   calendar_link: { label: string; url: string }
 }
 
@@ -118,21 +129,47 @@ export type CurrencyBlock = {
 
 export type FactorText = Record<Factor, { name: string; about: string; lesson: string }>
 
-export type PairDetail = RunMeta & {
-  symbol: string
+type DetailCommon = RunMeta & Identity & {
   score: number | null
   label: Label
   label_text: string
   rank: number | null
+  rank_of: number
   change_wow: number | null
   agreement: Agreement | null
-  base: CurrencyBlock
-  quote: CurrencyBlock
-  pair_factors: Partial<Record<PairFactor, FactorValue>>
-  contributions: Partial<Record<Factor, number | null>>
+  contributions: Partial<Record<Factor | 'economy', number | null>>
   factor_text: FactorText
   summary: string
 }
+
+/** An FX pair or gold: both currencies' factors side by side. */
+export type PairDetail = DetailCommon & {
+  market: 'forex' | 'metal'
+  base: CurrencyBlock
+  quote: CurrencyBlock
+  pair_factors: Partial<Record<PairFactor, FactorValue>>
+}
+
+/** A home-economy factor with the score it gives a stock market (inflation and rates count the other way round). */
+export type EquityFactorValue = FactorValue & { equity_score: number | null }
+
+/** An index, stock or coin: its home economy read the stock-market way, then its own positioning, trend and crowd. */
+export type InstrumentDetail = DetailCommon & {
+  market: 'index' | 'stock' | 'crypto'
+  home: string
+  economy: number | null
+  economy_name: string
+  home_block: Omit<CurrencyBlock, 'factors'> & { factors: Partial<Record<CurrencyFactor, EquityFactorValue>> }
+  has_cot: boolean
+  pair_factors: Partial<Record<PairFactor | 'cot', FactorValue>>
+}
+
+export type ScorecardDetail = PairDetail | InstrumentDetail
+
+export const isInstrument = (d: { market: Market }): d is InstrumentDetail => d.market === 'index' || d.market === 'stock' || d.market === 'crypto'
+
+/** The economy factors an index, stock or coin reads, and which way each counts for a stock market. */
+export const EQUITY_SIGN: Record<Exclude<CurrencyFactor, 'cot'>, 1 | -1> = { rates: -1, inflation: -1, growth: 1, labour: 1, business: 1 }
 
 export type HistoryPoint = { as_of: string; score: number | null; label: Label; close: number | null; replay: boolean }
 
@@ -162,7 +199,12 @@ export type ScannerStatus = {
 const STALE = 5 * 60_000
 
 export const usePairs = () =>
-  useQuery({ queryKey: ['scanner', 'pairs'], queryFn: () => api<RunMeta & { pairs: PairRow[] }>('/scanner/pairs'), staleTime: STALE, retry: false })
+  useQuery({
+    queryKey: ['scanner', 'pairs'],
+    queryFn: () => api<RunMeta & { pairs: PairRow[]; markets?: Record<Market, string> }>('/scanner/pairs'),
+    staleTime: STALE,
+    retry: false,
+  })
 
 export const useScoreboard = () =>
   useQuery({ queryKey: ['scanner', 'scoreboard'], queryFn: () => api<Scoreboard>('/scanner/scoreboard'), staleTime: STALE, retry: false })
@@ -176,7 +218,7 @@ export const useCurrencies = () =>
   })
 
 export const usePair = (symbol: string) =>
-  useQuery({ queryKey: ['scanner', 'pair', symbol], queryFn: () => api<PairDetail>(`/scanner/pairs/${symbol}`), staleTime: STALE, retry: false })
+  useQuery({ queryKey: ['scanner', 'pair', symbol], queryFn: () => api<ScorecardDetail>(`/scanner/pairs/${symbol}`), staleTime: STALE, retry: false })
 
 export const useHistory = (symbol: string, weeks: string) =>
   useQuery({
@@ -236,6 +278,8 @@ export type FactorEvidence = {
   sides: EvidenceSide[]
   calendar?: CalendarItem[]
   calendar_link?: { label: string; url: string }
+  /** Set for an index, stock or coin's economy factor: −1 when it counts the other way round for a stock market. */
+  equity_sign?: 1 | -1
   disclaimer: string
 }
 

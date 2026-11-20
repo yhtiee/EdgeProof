@@ -8,7 +8,7 @@ a backfill keep released_at empty and use the estimated publication lag.
 import logging
 from datetime import timedelta
 
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from . import releases
@@ -37,8 +37,8 @@ def _store(source: DataSource, rows: list[Row], backfill: bool) -> dict:
     today = timezone.localdate()
     new, changed = [], []
     for r in rows:
-        currency = currencies.get(r.subject) if len(r.subject) == 3 else None
-        pair = pairs.get(r.subject) if len(r.subject) == 6 else None
+        currency = currencies.get(r.subject)
+        pair = None if currency else pairs.get(r.subject)  # a pair, gold, or an index, stock or coin
         if not currency and not pair:
             continue
         key = (r.factor, r.series, (currency or pair).id, r.period)
@@ -58,25 +58,35 @@ def _store(source: DataSource, rows: list[Row], backfill: bool) -> dict:
     return {"rows": len(rows), "new": len(new), "updated": len(changed)}
 
 
-NEWS_KEEP_DAYS = 180
+NEWS_KEEP_DAYS = 365  # the News headlines keep a year; the scanner's evidence looks back 150 days
 
 
 def run_news(source: DataSource) -> dict:
-    """Upsert central bank publications by URL and drop ones older than six months."""
+    """
+    Upsert official publications by URL and drop ones older than a year. Every item except
+    housekeeping is kept for the News headlines; the scanner's evidence reads only the bank
+    items tagged with a factor.
+    """
     items, errors = news.fetch_all()
     if not items and errors:
         raise SourceError("; ".join(errors))
-    items = [i for i in items if i.topics]  # only items that back a factor
+    items = [i for i in items if not i.housekeeping]
     currencies = {c.code: c for c in Currency.objects.all()}
-    known = set(Publication.objects.filter(url__in=[i.url for i in items]).values_list("url", flat=True))
+    by_url = {i.url: i for i in items}
+    known = {p.url: p for p in Publication.objects.filter(url__in=list(by_url))}
     new = [
-        Publication(currency=currencies[i.currency], title=i.title, url=i.url, published_at=i.published_at,
-                    summary=i.summary, topics=i.topics, source=i.source)
-        for i in {i.url: i for i in items}.values() if i.url not in known
+        Publication(currency=currencies[i.currency], title=i.title, url=i.url, published_at=i.published_at, summary=i.summary,
+                    topics=i.topics, source=i.source, kind=i.kind, publisher=i.publisher)
+        for i in by_url.values() if i.url not in known
     ]
+    # Rows stored before headlines had kinds get one now.
+    stale = [p for url, p in known.items() if not p.kind]
+    for p in stale:
+        p.kind, p.publisher, p.source = by_url[p.url].kind, by_url[p.url].publisher, by_url[p.url].source
     Publication.objects.bulk_create(new, ignore_conflicts=True)
+    Publication.objects.bulk_update(stale, ["kind", "publisher", "source", "updated_at"])
     Publication.objects.filter(published_at__lt=timezone.now() - timedelta(days=NEWS_KEEP_DAYS)).delete()
-    return {"rows": len(items), "new": len(new), "updated": 0, "feed_errors": errors}
+    return {"rows": len(items), "new": len(new), "updated": len(stale), "feed_errors": errors}
 
 
 def run_calendar(source: DataSource) -> dict:
@@ -91,17 +101,31 @@ def run_calendar(source: DataSource) -> dict:
     for e in events:
         _, created = CalendarEvent.objects.update_or_create(
             currency=currencies[e.currency], title=e.title, at=e.at,
-            defaults={"impact": e.impact, "forecast": e.forecast, "previous": e.previous, "factor": e.factor},
+            defaults={"impact": e.impact, "forecast": e.forecast, "previous": e.previous, "factor": e.factor,
+                      "indicator": releases.match(e.currency, e.title) or ""},
         )
         new, updated = new + created, updated + (not created)
     CalendarEvent.objects.filter(at__lt=timezone.now() - timedelta(weeks=8)).delete()
-    return {"rows": len(events), "new": new, "updated": updated}
+    actuals = releases.fill_calendar_actuals()
+    return {"rows": len(events), "new": new, "updated": updated, "actuals": actuals}
 
 
 def monthly_closes_current() -> bool:
     """Seasonality needs last month's close; once it's stored, the monthly fetch can wait for the next month."""
-    last_month = (timezone.localdate().replace(day=1) - timedelta(days=1)).replace(day=1)
-    return RawObservation.objects.filter(factor="monthly", period_date__gte=last_month).count() >= len(ALL_PAIRS)
+    this_month = timezone.localdate().replace(day=1)
+    last_month = (this_month - timedelta(days=1)).replace(day=1)
+    rows = RawObservation.objects.filter(factor="monthly")
+    listed = set(rows.values_list("pair_id", flat=True).distinct())
+    if len(listed) < len(ALL_PAIRS):
+        return False  # an instrument has no monthly history yet (just added)
+    # Everything that traded before this month has last month's close (a new listing has none to wait for).
+    traded = set(rows.filter(period_date__lt=this_month).values_list("pair_id", flat=True).distinct())
+    return traded <= set(rows.filter(period_date=last_month).values_list("pair_id", flat=True).distinct())
+
+
+def _fresh_connection() -> None:
+    if not connection.in_atomic_block:  # never inside a caller's transaction (tests, nested jobs)
+        connection.close()
 
 
 def run_source(name: str, *, backfill: bool = False, years: int = 3) -> dict:
@@ -111,7 +135,13 @@ def run_source(name: str, *, backfill: bool = False, years: int = 3) -> dict:
         return {"source": name, "ok": True, "skipped": "this month's closes are stored"}
     if name in ("news", "calendar", "releases"):
         try:
-            result = run_news(source) if name == "news" else run_calendar(source) if name == "calendar" else releases.resolve_all()
+            if name == "news":
+                result = run_news(source)
+            elif name == "calendar":
+                result = run_calendar(source)
+            else:
+                result = releases.resolve_all()
+                result["calendar_actuals"] = releases.fill_calendar_actuals()  # new official prints reach the News calendar
         except SourceError as exc:
             source.last_error, source.last_error_at = str(exc)[:500], timezone.now()
             source.save(update_fields=["last_error", "last_error_at", "updated_at"])
@@ -125,12 +155,16 @@ def run_source(name: str, *, backfill: bool = False, years: int = 3) -> dict:
             rows = fn(1000 if backfill else 260)  # trend needs 210+ closes; 260 also covers holidays
         else:
             rows = fn(start) if takes_start else fn()
+        # A fetch can take minutes (Twelve Data's free plan waits a minute per batch); the database pooler
+        # may have dropped the idle connection meanwhile, so start a fresh one before writing.
+        _fresh_connection()
         result = _store(source, rows, backfill)
         source.last_success_at, source.last_error = timezone.now(), ""
         source.save(update_fields=["last_success_at", "last_error", "updated_at"])
         log.info("scanner source %s ok %s", name, result)
         return {"source": name, "ok": True, **result}
     except (SourceError, KeyError, ValueError, TypeError) as exc:
+        _fresh_connection()  # same reason: the failure may come after a long wait
         source.last_error, source.last_error_at = str(exc)[:500], timezone.now()
         source.save(update_fields=["last_error", "last_error_at", "updated_at"])
         log.warning("scanner source %s failed: %s", name, exc)

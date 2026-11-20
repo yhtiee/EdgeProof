@@ -3,47 +3,57 @@ import { Link } from 'react-router'
 import { Clock } from 'lucide-react'
 import { EmptyState, SelectField } from '../../components/ui'
 import { usePairs, type Label, type PairRow } from './api'
-import { LABEL_ORDER, LABEL_TEXT, filterPairs, formatScore, instrumentName, sortByBias } from './format'
+import { LABEL_ORDER, LABEL_TEXT, MARKET_OPTIONS, filterPairs, formatScore, hasCurrencies, instrumentName, sortByBias } from './format'
 import { LabelChip, ScannerProblem, ScoreBar, Skeleton, TrustLine, WowChange } from './parts'
 
 /**
- * Pair rankings (docs/scanner §5, docs/scanner/scoreboard.md): ranked by the final bias, which
- * adds the two models together: half the regime score (where each economy and central bank
- * stands) and half the momentum score (how the latest data compared with forecasts, from the
- * scoreboard). Each row shows both parts and flags when they pull opposite ways.
- * Filters run on the client: it's 29 rows.
+ * Rankings (docs/scanner §5, docs/scanner/scoreboard.md, docs/scanner/markets.md): every FX pair,
+ * gold, index, stock and coin, ranked by the final bias, which adds the two models together: half
+ * the regime score (where each economy and central bank stands) and half the momentum score (how
+ * the latest data compared with forecasts, from the scoreboard). Each row shows both parts and
+ * flags when they pull opposite ways. Filters run on the client: it's about 60 rows.
  */
 const CURRENCIES = ['EUR', 'GBP', 'AUD', 'NZD', 'USD', 'CAD', 'CHF', 'JPY', 'XAU']
 
 export default function PairsPage() {
   const pairs = usePairs()
+  const [market, setMarket] = useState('')
   const [label, setLabel] = useState('')
   const [currency, setCurrency] = useState('')
   const [strong, setStrong] = useState(false)
 
   if (pairs.isError) return <ScannerProblem error={pairs.error} />
   const data = pairs.data
-  const rows = data ? sortByBias(filterPairs(data.pairs, { label, currency, strong })) : []
+  const rows = data ? sortByBias(filterPairs(data.pairs, { market, label, currency: hasCurrencies(market) ? currency : '', strong })) : []
 
   return (
     <div>
       <p className="mb-6 max-w-prose text-small text-muted">
         The final bias adds two views together: the regime (rates, inflation, growth, jobs, business confidence, positioning) and momentum
-        (how the latest releases compared with forecasts, from the Scoreboard). When they disagree strongly, the pair is marked Mixed.
+        (how the latest releases compared with forecasts, from the Scoreboard). When they disagree strongly, the row is marked Mixed.
+        Indices, stocks and coins read their home economy the stock-market way: hot inflation and rising rates count against them.
       </p>
       <div className="mb-6 flex flex-wrap items-end gap-3">
+        <SelectField
+          label="Market"
+          value={market}
+          onChange={(e) => setMarket(e.target.value)}
+          options={[{ value: '', label: 'All markets' }, ...MARKET_OPTIONS]}
+        />
         <SelectField
           label="Bias"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           options={[{ value: '', label: 'All labels' }, ...LABEL_ORDER.map((l) => ({ value: l, label: LABEL_TEXT[l] }))]}
         />
-        <SelectField
-          label="Currency"
-          value={currency}
-          onChange={(e) => setCurrency(e.target.value)}
-          options={[{ value: '', label: 'All' }, ...CURRENCIES.map((c) => ({ value: c, label: c === 'XAU' ? 'Gold' : c }))]}
-        />
+        {hasCurrencies(market) && (
+          <SelectField
+            label="Currency"
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            options={[{ value: '', label: 'All' }, ...CURRENCIES.map((c) => ({ value: c, label: c === 'XAU' ? 'Gold' : c }))]}
+          />
+        )}
         <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-control px-3 text-small font-semibold has-[:checked]:border-text has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus">
           <input type="checkbox" checked={strong} onChange={(e) => setStrong(e.target.checked)} className="size-4 accent-[var(--text)]" />
           Strong only
@@ -53,12 +63,12 @@ export default function PairsPage() {
       {!data ? (
         <Skeleton rows={8} />
       ) : rows.length === 0 ? (
-        <EmptyState message="No pairs match these filters this week." />
+        <EmptyState message="Nothing matches these filters this week." />
       ) : (
         <>
-          <div className="mb-2 hidden grid-cols-[2.5rem_6rem_1fr_4rem_8rem_9rem_4.5rem] gap-4 px-3 text-caption text-subtle md:grid" aria-hidden="true">
+          <div className="mb-2 hidden grid-cols-[2.5rem_9rem_1fr_4rem_8rem_9rem_4.5rem] gap-4 px-3 text-caption text-subtle md:grid" aria-hidden="true">
             <span title="Most bullish first, most bearish last">Rank</span>
-            <span>Pair</span>
+            <span>Instrument</span>
             <span className="flex justify-between">
               <span>−10</span>
               <span>0</span>
@@ -103,12 +113,14 @@ function PairItem({ p }: { p: PairRow }) {
     <li>
       <Link
         to={`/scanner/${p.symbol}`}
-        className="grid grid-cols-[2rem_1fr_auto] items-center gap-x-3 gap-y-2 rounded-md border border-border bg-surface px-3 py-3 hover:border-control md:grid-cols-[2.5rem_6rem_1fr_4rem_8rem_9rem_4.5rem] md:gap-4"
-        aria-label={`${instrumentName(p.symbol)}: ${LABEL_TEXT[label]}, final score ${formatScore(p.final_score)}, regime ${formatScore(p.score)}, momentum ${formatScore(p.momentum)}${p.mixed ? ', mixed' : ''}`}
+        className="grid grid-cols-[2rem_1fr_auto] items-center gap-x-3 gap-y-2 rounded-md border border-border bg-surface px-3 py-3 hover:border-control md:grid-cols-[2.5rem_9rem_1fr_4rem_8rem_9rem_4.5rem] md:gap-4"
+        aria-label={`${instrumentName(p.symbol, p.name)}: ${LABEL_TEXT[label]}, final score ${formatScore(p.final_score)}, regime ${formatScore(p.score)}, momentum ${formatScore(p.momentum)}${p.mixed ? ', mixed' : ''}`}
       >
         <span className="font-mono text-small text-subtle">{p.final_rank ?? '—'}</span>
-        <span className="flex items-center gap-2 font-mono text-body font-semibold">
-          {instrumentName(p.symbol)}
+        <span className={`flex min-w-0 items-center gap-2 text-body font-semibold ${p.market === 'forex' ? 'font-mono' : ''}`}>
+          <span className="truncate" title={p.proxy ? `Prices from ${p.proxy}, a fund that tracks this index` : undefined}>
+            {instrumentName(p.symbol, p.name)}
+          </span>
           {stale > 0 && (
             <span title={`${stale} factor${stale > 1 ? 's' : ''} stale this week`} className="text-warning">
               <Clock className="size-3.5" strokeWidth={2} aria-hidden="true" />

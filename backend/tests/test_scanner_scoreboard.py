@@ -165,6 +165,28 @@ def test_us_only_columns_and_gold_mirror_usd():
     assert gold["columns"]["gdp"]["status"] == "pending"
 
 
+def test_instrument_row_reads_the_home_economy_the_stock_market_way():
+    macro = {"USD": {"cpi": Cell(1), "gdp": Cell(1), "rates": Cell(1), "nfp": Cell(-1)}, "EUR": {"cpi": Cell(-1), "mpmi": Cell(None, "none")}}
+    us = scoreboard.instrument_row("USD", {"trend": Cell(2)}, macro)
+    cols = us["columns"]
+    assert (cols["cpi"]["score"], cols["gdp"]["score"], cols["rates"]["score"], cols["nfp"]["score"]) == (-1, 1, -1, -1)
+    assert cols["ppi"]["status"] == "pending" and cols["cpi"]["sides"]["sign"] == -1
+    assert us["score"] == 2 - 1 + 1 - 1 - 1 and us["per_column"] == 1
+    dax = scoreboard.instrument_row("EUR", {}, macro)["columns"]
+    assert dax["cpi"]["score"] == 1 and dax["nfp"] == {"score": 0, "status": "na", "sides": {"home": None, "sign": 1}}
+    assert dax["mpmi"]["status"] == "none"
+
+
+def test_momentum_scales_single_sided_rows_to_their_range():
+    row = {"columns": {c: {"score": None, "status": "pending"} for c in BOARD_COLUMNS}, "per_column": 1}
+    for c in ("cpi", "retail", "unemp", "nfp", "gdp"):
+        row["columns"][c] = {"score": 1, "status": "ok"}
+    row["columns"]["seasonality"] = {"score": 1, "status": "ok"}
+    assert scoreboard.momentum(row) == 10.0  # every column at its +1 ceiling
+    del row["per_column"]
+    assert scoreboard.momentum(row) == round(6 / 11 * 10, 2)  # a pair's columns run to +2
+
+
 def test_no_free_source_cells_say_so():
     macro = {"GBP": {"mpmi": Cell(None, "none")}, "JPY": {"mpmi": Cell(None, "none")}}
     assert scoreboard.pair_row("GBP", "JPY", {}, macro)["columns"]["mpmi"]["status"] == "none"
@@ -291,7 +313,7 @@ def test_scoreboard_api_end_to_end():
     c = APIClient()
     c.force_authenticate(user)
     body = c.get("/api/v1/scanner/scoreboard").json()
-    assert len(body["rows"]) == 29 and set(body["columns"]) == set(BOARD_COLUMNS)
+    assert len(body["rows"]) == 59 and set(body["columns"]) == set(BOARD_COLUMNS)
     row = next(r for r in body["rows"] if r["symbol"] == "GBPUSD")
     cols = {k: v["score"] for k, v in row["columns"].items()}
     assert cols["trend"] == 2 and cols["seasonality"] == 1 and cols["cot"] == 2 and cols["crowd"] == 1
@@ -304,4 +326,9 @@ def test_scoreboard_api_end_to_end():
     gbpusd = next(p for p in pairs if p["symbol"] == "GBPUSD")
     assert gbpusd["momentum"] is not None and gbpusd["final_score"] is not None  # five scored macro columns
     assert PairScore.objects.filter(pair__symbol="XAUUSD").exists()
+    spx = next(r for r in body["rows"] if r["symbol"] == "SPX500")
+    # US CPI missed (cooler: good for stocks), payrolls beat, retail sales missed; US-only columns count for a US index.
+    assert spx["columns"]["cpi"]["score"] == 1 and spx["columns"]["nfp"]["score"] == 1 and spx["columns"]["retail"]["score"] == -1
+    dax = next(r for r in body["rows"] if r["symbol"] == "GER40")
+    assert dax["columns"]["nfp"]["status"] == "na" and dax["home"] == "EUR" and dax["market"] == "index"
     assert "XAU" not in [b["code"] for b in c.get("/api/v1/scanner/currencies").json()["currencies"]]  # gold isn't a currency

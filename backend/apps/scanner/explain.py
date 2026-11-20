@@ -21,19 +21,23 @@ from django.utils import timezone
 from apps.ai import providers, tutor
 from apps.ai.models import AIInteraction
 
-from .evidence import calendar, news, observations
+from .evidence import CURRENCY_CODES, calendar, news, observations
 from .models import CurrencyScore, Explanation, FactorScore, Pair, PairScore, ScoringRun
 from .reference import (
     DISCLAIMER,
+    EQUITY_FACTORS,
+    EQUITY_SIGN,
     FACTOR_TEXT,
     FACTORS_CURRENCY,
     FACTORS_PAIR,
     LABEL_TEXT,
+    instrument,
+    is_equity,
 )
 
 FEATURE = "scanner_explain"
 
-SYSTEM = """You explain results from EdgeProof's Fundamental Bias Scanner to a beginner, in words a 12-year-old would understand. EdgeProof is an education app that teaches forex trading. The scanner scores where a currency's economic data leans (stronger or weaker); it is not a forecast.
+SYSTEM = """You explain results from EdgeProof's Fundamental Bias Scanner to a beginner, in words a 12-year-old would understand. EdgeProof is an education app that teaches forex trading. The scanner scores where a currency's economic data leans (stronger or weaker); it is not a forecast. It also covers stock indices, company shares and crypto coins: for those it reads the home economy the stock-market way (growth, jobs and business confidence help; hot inflation and higher interest rates hurt, because borrowing costs more and cash pays more) and adds the market's own price trend, futures positioning and retail crowd.
 
 Rules you always follow:
 1. Explain; never advise. No buy or sell calls, entries, exits, price targets, predictions of where a price will go, or promises. Say once, simply, that the scanner shows where the data leans, not what the price will do.
@@ -47,7 +51,7 @@ Rules you always follow:
 **What the data shows**
 - two to four bullets, each with its date
 
-**Why it matters for the currency** (or "for the pair")
+**Why it matters for the currency** (or "for the pair", or "for the market" for an index, share or coin)
 A short paragraph.
 
 **From the central bank**
@@ -121,7 +125,9 @@ def context(run: ScoringRun, subject: str, factor: str | None) -> str:
     """The data block the model explains. Every number in it is from our database."""
     lines = [f"Scores as of {when(run.as_of.isoformat())}. Labels: +6 or more Very Bullish, +2 or more Bullish, between -2 and +2 Neutral, -2 or less Bearish, -6 or less Very Bearish."]
     factors = [factor] if factor else FACTORS_CURRENCY
-    if len(subject) == 6:
+    if is_equity(subject):
+        return _instrument_context(run, subject, factor, lines)
+    if subject not in CURRENCY_CODES:
         pair = Pair.objects.select_related("base", "quote").get(symbol=subject)
         ps = PairScore.objects.get(run=run, pair=pair)
         codes = [pair.base.code, pair.quote.code]
@@ -149,7 +155,7 @@ def context(run: ScoringRun, subject: str, factor: str | None) -> str:
             lines.append(_factor_line(FACTOR_TEXT[f][0], code, FactorScore.objects.filter(run=run, factor=f, currency__code=code).first()))
             if factor:
                 lines.append(_prints(f, code))
-    if len(subject) == 6 and not factor:
+    if subject not in CURRENCY_CODES and not factor:
         for f in FACTORS_PAIR:
             lines.append(_factor_line(FACTOR_TEXT[f][0], subject, FactorScore.objects.filter(run=run, factor=f, pair__symbol=subject).first()))
 
@@ -164,7 +170,48 @@ def context(run: ScoringRun, subject: str, factor: str | None) -> str:
     return "\n".join(line for line in lines if line)
 
 
-SECTION = re.compile(r"(\*\*(?:What the data shows|Why it matters for the (?:currency|pair)|From the central bank|Coming up)\*\*)[ \t]*:?[ \t]+(?=\S)")
+def _instrument_context(run: ScoringRun, subject: str, factor: str | None, lines: list[str]) -> str:
+    """The data block for an index, stock or coin: its score, the home economy read the stock-market way, and its own factors."""
+    info = instrument(subject)
+    home = info["home"]
+    ps = PairScore.objects.get(run=run, pair__symbol=subject)
+    detail = ps.detail or {}
+    kind = {"index": "stock index", "stock": "company share", "crypto": "crypto coin"}[info["market"]]
+    lines.append(f"{info['name']} ({kind}): scanner score {_signed(ps.score)} of a -10 to +10 range, label {LABEL_TEXT[ps.label]}. A positive score means the data leans in its favour.")
+    if info["proxy"]:
+        lines.append(f"Its price is followed through {info['proxy']}, a fund that tracks the index.")
+    lines.append(f"Home economy: {home}. Read the stock-market way it scores {_signed(detail.get('economy'))}: growth, jobs and business confidence count as they are; "
+                 "inflation and interest rates count the other way round (a factor score of +2 for inflation becomes -2 here).")
+    if not factor:
+        contrib = detail.get("contributions") or {}
+        lines.append("Parts of the score: " + ", ".join(f"{k} {_signed(v)}" for k, v in contrib.items()) + ".")
+    own = [f for f in ("cot", *FACTORS_PAIR) if f != "cot" or info["cot"]]
+    economy = [f for f in EQUITY_FACTORS if not factor or f == factor]
+    lines.append("\nFactors (what each measures, then the reading):")
+    for f in economy:
+        lines.append(f"{FACTOR_TEXT[f][0]}: {FACTOR_TEXT[f][1]} For a stock market this counts {'the other way round' if EQUITY_SIGN[f] < 0 else 'as it is'}.")
+        lines.append(_factor_line(FACTOR_TEXT[f][0], home, FactorScore.objects.filter(run=run, factor=f, currency__code=home).first()))
+        if factor:
+            lines.append(_prints(f, home))
+    for f in own:
+        if factor and f != factor:
+            continue
+        lines.append(f"{FACTOR_TEXT[f][0]}: {FACTOR_TEXT[f][1]}")
+        lines.append(_factor_line(FACTOR_TEXT[f][0], info["name"], FactorScore.objects.filter(run=run, factor=f, pair__symbol=subject).first()))
+        if factor:
+            lines.append(_prints(f, subject, pair=True))
+    if factor not in ("cot", *FACTORS_PAIR):
+        events = calendar([home], factor)
+        if events:
+            lines.append("\nScheduled releases (Forex Factory calendar; forecast and previous are other people's estimates and the last figure):")
+            lines.extend(f"- {when(e['at'])} {e['currency']} {e['title']} ({e['impact']} impact){' forecast ' + e['forecast'] if e['forecast'] else ''}{' previous ' + e['previous'] if e['previous'] else ''}{' (coming up)' if e['upcoming'] else ' (already out)'}" for e in events[:8])
+        pubs = _news_lines(home, factor)
+        lines.append("\nRecent central bank publications:" if pubs else "\nRecent central bank publications: none on this topic.")
+        lines.extend(pubs)
+    return "\n".join(line for line in lines if line)
+
+
+SECTION = re.compile(r"(\*\*(?:What the data shows|Why it matters for the (?:currency|pair|market)|From the central bank|Coming up)\*\*)[ \t]*:?[ \t]+(?=\S)")
 
 
 def tidy(answer: str) -> str:
@@ -208,7 +255,7 @@ def answer_events(user, run: ScoringRun, subject: str, factor: str | None):
 
     yield {"type": "meta", "remaining": remaining(user), "cached": False}  # already counts this request
     data = context(run, subject, factor)
-    prompt = f"<scanner_data>\n{data}\n</scanner_data>\n\nExplain {'the ' + FACTOR_TEXT[factor][0].lower() + ' factor for ' if factor else ''}{subject[:3] + '/' + subject[3:] if len(subject) == 6 else subject} simply."
+    prompt = f"<scanner_data>\n{data}\n</scanner_data>\n\nExplain {'the ' + FACTOR_TEXT[factor][0].lower() + ' factor for ' if factor else ''}{subject if subject in CURRENCY_CODES else instrument(subject)['name']} simply."
     system, reason = SYSTEM, None
     usage = providers.Usage("", "")
     for attempt in range(2):

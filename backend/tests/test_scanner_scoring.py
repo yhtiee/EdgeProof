@@ -10,6 +10,9 @@ from apps.scanner.scoring import (
     Obs,
     agreement,
     currency_score,
+    equity_agreement,
+    equity_economy,
+    instrument_score,
     label_for,
     pair_score,
     rank,
@@ -183,6 +186,32 @@ def test_labels(score, label):
 def test_ranking_by_absolute_score_then_change():
     order = rank({"EURUSD": (3.0, 0.5), "GBPUSD": (-5.75, 1.0), "USDJPY": (3.0, 2.0), "AUDNZD": (None, 0.0)})
     assert order == {"GBPUSD": 1, "USDJPY": 2, "EURUSD": 3}
+
+
+EQ_WEIGHTS = {f: DEFAULT_CONFIG[f][0] for f in ("cot", "rates", "inflation", "growth", "labour", "business")}
+
+
+def test_equity_economy_flips_inflation_and_rates():
+    home = {"cot": fr("cot", -2), "rates": fr("rates", 2), "inflation": fr("inflation", 1), "growth": fr("growth", 1),
+            "labour": fr("labour", 0), "business": fr("business", -1)}
+    e, parts = equity_economy(home, None, EQ_WEIGHTS)
+    # The currency's own COT is ignored. (1.5*-2 + 1*-1 + 1 + 0 - 1) / (2 * 5.5) * 10
+    assert e == pytest.approx(-4 / 11 * 10, abs=0.01) and set(parts) == {"rates", "inflation", "growth", "labour", "business"}
+    assert sum(parts.values()) == pytest.approx(e, abs=0.01)
+    with_cot, parts = equity_economy(home, fr("cot", 2), EQ_WEIGHTS)  # the instrument's own futures positioning
+    assert with_cot == pytest.approx((-4 + 3) / 14 * 10, abs=0.01) and parts["cot"] == pytest.approx(3 / 14 * 10, abs=0.01)
+    for f in ("growth", "labour", "business"):
+        home[f] = fr(f, None)
+    assert equity_economy(home, fr("cot", 2), EQ_WEIGHTS) == (None, {})  # three of five missing: insufficient
+
+
+def test_instrument_score_and_agreement():
+    p, detail = instrument_score(4.0, fr("trend", 2), fr("retail", None))
+    assert p == pytest.approx((0.7 * 4 + 0.15 * 10) / 0.85, abs=0.01) and set(detail["contributions"]) == {"economy", "trend"}
+    assert instrument_score(None, fr("trend", 2), fr("retail", 1))[0] is None
+    home = {"rates": fr("rates", 2), "growth": fr("growth", 1), "cot": fr("cot", 2)}
+    # Rates read as -2 for stocks (disagrees), growth +1 agrees, the currency COT is ignored, trend +1 agrees.
+    assert equity_agreement(3.0, home, None, fr("trend", 1), fr("retail", None)) == {"agree": 2, "of": 3}
 
 
 def test_agreement_counts_factors_pointing_the_same_way():

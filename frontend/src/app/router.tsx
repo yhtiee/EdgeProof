@@ -54,6 +54,15 @@ export const router = createBrowserRouter([
             ],
           },
           { path: '/scanner/:symbol', lazy: page(() => import('../features/scanner/PairPage')) },
+          // News: economic calendar and official headlines, open to every signed-in learner (docs/news.md).
+          {
+            path: '/news',
+            lazy: page(() => import('../features/news/NewsLayout')),
+            children: [
+              { index: true, lazy: page(() => import('../features/news/CalendarPage')) },
+              { path: 'headlines', lazy: page(() => import('../features/news/HeadlinesPage')) },
+            ],
+          },
           // Progress is a section of the profile; old links still land there.
           { path: '/progress', loader: () => redirect('/profile#progress') },
           { path: '/settings', lazy: page(() => import('../features/settings/MorePage')) },

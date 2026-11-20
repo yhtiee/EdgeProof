@@ -14,6 +14,8 @@ from .reference import (
     BOARD_COLUMNS,
     BOARD_LABELS,
     BOARD_MACRO,
+    BOARD_TECH,
+    EQUITY_BOARD_SIGN,
     INDICATORS,
     MERGE,
     US_ONLY,
@@ -221,6 +223,30 @@ def pair_row(base: str, quote: str, tech: dict[str, Cell], macro: dict[str, dict
             "filled": sum(1 for c in cols.values() if c["score"] is not None and c["status"] == "ok")}
 
 
+def instrument_row(home: str, tech: dict[str, Cell], macro: dict[str, dict[str, Cell]], signs: dict[str, int] = EQUITY_BOARD_SIGN) -> dict:
+    """
+    The 18 columns for an index, stock or coin. Technical columns are its own; each macro column is
+    the home economy's cell read the stock-market way (sign flipped for inflation and rates), so a
+    column runs −1…+1. US-only columns don't apply to a non-US home.
+    """
+    cols: dict[str, dict] = {}
+    for c in BOARD_TECH:
+        cell = tech.get(c) or Cell(None, "missing")
+        cols[c] = {"score": cell.score, "status": cell.status, "detail": cell.detail}
+    for ind in BOARD_MACRO:
+        h = macro.get(home, {}).get(ind)
+        sides = {"home": _side(h), "sign": signs[ind]}
+        if ind in US_ONLY and home != "USD":
+            cols[ind] = {"score": 0, "status": "na", "sides": sides}
+        elif h is None or h.score is None:
+            cols[ind] = {"score": None, "status": "none" if h is not None and h.status == "none" else "pending", "sides": sides}
+        else:
+            cols[ind] = {"score": signs[ind] * h.score, "status": "ok", "sides": sides}
+    total = sum(c["score"] for c in cols.values() if c["score"] is not None)
+    return {"columns": cols, "score": total, "label": board_label(total), "per_column": 1,
+            "filled": sum(1 for c in cols.values() if c["score"] is not None and c["status"] == "ok")}
+
+
 def _side(cell: Cell | None) -> dict | None:
     return None if cell is None else {"score": cell.score, "status": cell.status, "detail": cell.detail}
 
@@ -245,12 +271,15 @@ def board_rank(scores: dict[str, int | None]) -> dict[str, int]:
 
 
 def momentum(row: dict, min_columns: int = MERGE["min_macro_columns"]) -> float | None:
-    """Macro columns and seasonality from the scoreboard, scaled to −10…+10 over the columns that have data."""
+    """
+    Macro columns and seasonality from the scoreboard, scaled to −10…+10 over the columns that have data.
+    A pair's macro column runs −2…+2 (base minus quote); a single-sided instrument's runs −1…+1.
+    """
     macro = [row["columns"][c]["score"] for c in BOARD_MACRO if row["columns"][c]["status"] == "ok"]
     if len(macro) < min_columns:
         return None
     season = row["columns"]["seasonality"]["score"]
-    parts, span = sum(macro), 2 * len(macro)
+    parts, span = sum(macro), row.get("per_column", 2) * len(macro)
     if season is not None:
         parts, span = parts + season, span + 1
     return round(parts / span * 10, 2)

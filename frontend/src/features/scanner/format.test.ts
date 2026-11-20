@@ -1,6 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import type { PairRow } from './api'
-import { barGeometry, compact, describeFactor, describeRelease, filterPairs, formatInt, formatPeriod, formatPrint, formatScore, instrumentName, ordinal, parseStale, sortByBias } from './format'
+import {
+  barGeometry,
+  compact,
+  describeFactor,
+  describeRelease,
+  filterPairs,
+  formatInt,
+  formatPeriod,
+  formatPrice,
+  formatPrint,
+  formatScore,
+  hasCurrencies,
+  instrumentName,
+  ordinal,
+  parseStale,
+  sortByBias,
+} from './format'
 
 describe('scanner format', () => {
   it('formats scores with a real minus and one decimal', () => {
@@ -56,13 +72,28 @@ describe('scanner format', () => {
 
   it('filters pairs by label, currency and strength', () => {
     const row = (symbol: string, label: PairRow['label']): PairRow => ({
-      symbol, base: symbol.slice(0, 3), quote: symbol.slice(3), score: 0, label: 'neutral', label_text: '', rank: 1, change_wow: 0, agreement: null, stale_factors: [],
+      symbol, name: instrumentName(symbol), market: 'forex', home: null, proxy: '', base: symbol.slice(0, 3), quote: symbol.slice(3), score: 0, label: 'neutral', label_text: '', rank: 1, change_wow: 0, agreement: null, stale_factors: [],
       final_score: 0, final_label: label, final_rank: 1, momentum: null, mixed: false, board_score: null,
     })
     const rows = [row('EURUSD', 'very_bearish'), row('USDJPY', 'bullish'), row('GBPCHF', 'neutral')]
     expect(filterPairs(rows, { label: '', currency: 'USD', strong: false }).map((p) => p.symbol)).toEqual(['EURUSD', 'USDJPY'])
     expect(filterPairs(rows, { label: '', currency: '', strong: true }).map((p) => p.symbol)).toEqual(['EURUSD'])
     expect(filterPairs(rows, { label: 'neutral', currency: '', strong: false }).map((p) => p.symbol)).toEqual(['GBPCHF'])
+  })
+
+  it('filters by market; indices, stocks and coins have no currencies to filter on', () => {
+    const row = (symbol: string, market: PairRow['market']) => ({ symbol, market, base: null, quote: null, final_label: 'neutral' }) as unknown as PairRow
+    const rows = [row('SPX500', 'index'), row('AAPL', 'stock'), row('BTCUSD', 'crypto'), { ...row('EURUSD', 'forex'), base: 'EUR', quote: 'USD' }]
+    expect(filterPairs(rows, { market: 'index', label: '', currency: '', strong: false }).map((p) => p.symbol)).toEqual(['SPX500'])
+    expect(filterPairs(rows, { market: '', label: '', currency: 'USD', strong: false }).map((p) => p.symbol)).toEqual(['EURUSD'])
+    expect([hasCurrencies(''), hasCurrencies('forex'), hasCurrencies('metal'), hasCurrencies('stock')]).toEqual([true, true, true, false])
+  })
+
+  it('names instruments and formats their prices', () => {
+    expect(instrumentName('SPX500', 'S&P 500')).toBe('S&P 500')
+    expect(instrumentName('BTCUSD')).toBe('BTCUSD') // not two currencies: no slash
+    expect(instrumentName('AUDNZD')).toBe('AUD/NZD')
+    expect([1.084231, 157.2304, 6012.456, 91234.6, 0.18342].map(formatPrice)).toEqual(['1.08423', '157.230', '6,012.46', '91,235', '0.18342'])
   })
 
   it('formats scoreboard values and releases', () => {

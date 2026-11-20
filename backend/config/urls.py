@@ -13,6 +13,7 @@ from apps.core import uploads
 from apps.core import views as core
 from apps.discipline import views as discipline
 from apps.gates import views as gates
+from apps.news import views as news
 from apps.scanner import views as scanner
 from apps.strategy import views as strategy
 from apps.testing import views as testing
@@ -81,6 +82,9 @@ api_v1 = [
     path("scanner/explain/status", scanner.ExplainStatusView.as_view()),
     path("scanner/explain", scanner.ExplainView.as_view()),
     path("scanner/calendar/<str:subject>", scanner.CalendarView.as_view()),
+    # News: economic calendar and official headlines (signed-in users, no gate; docs/news.md)
+    path("news/calendar", news.CalendarView.as_view()),
+    path("news/headlines", news.HeadlinesView.as_view()),
     # Uploads
     path("uploads/presign", uploads.PresignView.as_view()),
     path("uploads/<path:key>/local", uploads.LocalUploadView.as_view()),

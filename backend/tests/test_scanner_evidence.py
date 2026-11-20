@@ -37,8 +37,9 @@ def test_feed_parsing_tags_and_cleans():
     assert first.url == "https://www.boj.or.jp/en/mopo/a.htm"  # http upgraded
     assert first.summary == "The Board decided to raise the policy rate."
     assert first.topics == ["rates"]
-    assert items[1].topics == []  # housekeeping excluded even with a topic word
-    assert items[2].topics == []
+    assert items[1].topics == [] and items[1].housekeeping  # housekeeping excluded even with a topic word
+    assert items[2].topics == [] and not items[2].housekeeping  # untagged, but kept for the News headlines
+    assert (first.kind, first.publisher) == ("decision", "bank")
     atom = news.parse(ATOM, "CHF")[0]
     assert atom.title == "Monetary policy assessment of 24 September 2026"  # SNB date prefix stripped
     assert set(atom.topics) == {"rates", "inflation"}
@@ -53,7 +54,9 @@ def test_calendar_parsing_and_factors():
         {"title": "Trade Balance", "country": "CNY", "date": "2026-10-12T00:00:00-04:00", "impact": "High"},
         {"title": "Flash Manufacturing PMI", "country": "EUR", "date": "2026-10-23T04:00:00-04:00", "impact": "Medium"},
     ])
-    assert [(e.currency, e.factor) for e in events] == [("USD", "inflation"), ("GBP", "rates"), ("EUR", "business")]
+    # Every impact level is kept for the News calendar (holidays too); China isn't one of our currencies.
+    assert [(e.currency, e.factor, e.impact) for e in events] == [("USD", "inflation", "High"), ("GBP", "rates", "High"), ("JPY", "", "Holiday"),
+                                                                  ("EUR", "business", "Medium")]
     assert events[0].forecast == "3.6%" and events[0].at.utcoffset() == timedelta(hours=-4)
 
 
@@ -192,7 +195,8 @@ def test_news_and_calendar_ingest(monkeypatch, seeded):  # noqa: F811 (fixture)
 
     first = ingest.run_job("fetch_news")
     assert [r["ok"] for r in first] == [True, True, True]  # news, calendar, scoreboard releases
-    assert Publication.objects.count() == 1  # untagged items dropped
+    assert Publication.objects.count() == 2  # housekeeping dropped; the untagged item is kept for the News headlines
+    assert evidence.news("JPY", None) and all(n["topics"] for n in evidence.news("JPY", None))  # the scanner still reads tagged items only
     again = ingest.run_job("fetch_news")
     assert again[0]["new"] == 0 and again[1]["updated"] == 1
     assert DataSource.objects.get(name="news").last_success_at is not None

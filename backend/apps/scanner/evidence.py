@@ -17,13 +17,23 @@ from .models import (
     ScoringRun,
 )
 from .reference import (
+    CALENDAR_IMPACTS,
     CALENDAR_LINK,
+    COT_REPORT,
+    CURRENCIES,
+    EQUITY_FACTORS,
+    EQUITY_SIGN,
     FACTOR_TEXT,
     FACTORS_CURRENCY,
     FACTORS_PAIR,
+    METALS,
     RELEASE_LAG_DAYS,
+    instrument,
+    is_equity,
     official_link,
 )
+
+CURRENCY_CODES = {c for c, *_ in CURRENCIES + METALS}
 from .scoring import Obs
 
 # How many recent prints to show per factor.
@@ -61,7 +71,8 @@ def calendar(codes: list[str], factor: str | None = None, *, back_days: int = 7,
     """Scheduled releases (Forex Factory) for these currencies, from a week ago to two weeks ahead."""
     now = timezone.now()
     since = now - timedelta(days=back_days) if back_days else now  # back_days=0: upcoming only
-    qs = CalendarEvent.objects.filter(currency__code__in=codes, at__gte=since, at__lte=now + timedelta(days=ahead_days))
+    qs = CalendarEvent.objects.filter(currency__code__in=codes, at__gte=since, at__lte=now + timedelta(days=ahead_days),
+                                      impact__in=CALENDAR_IMPACTS)  # the News calendar shows the rest
     if factor:
         qs = qs.filter(factor=factor)
     return [{"currency": e.currency.code if hasattr(e, "currency") else "", "title": e.title, "at": e.at.isoformat(), "impact": e.impact,
@@ -95,8 +106,9 @@ def observations(factor: str, *, currency: str | None = None, pair: str | None =
 
 def news(code: str, factor: str | None, limit: int = NEWS_PER_CURRENCY) -> list[dict]:
     """Recent central bank publications on this factor (or on any factor when `factor` is None)."""
-    qs = Publication.objects.filter(currency__code=code, published_at__gte=timezone.now() - timedelta(days=NEWS_DAYS))
-    items = [p for p in qs[:200] if factor is None or factor in p.topics][:limit]
+    qs = Publication.objects.filter(currency__code=code, publisher="bank", published_at__gte=timezone.now() - timedelta(days=NEWS_DAYS))
+    # Only items that speak to a factor back a score (the News headlines keep the rest).
+    items = [p for p in qs[:200] if p.topics and (factor is None or factor in p.topics)][:limit]
     return [{"title": p.title, "url": p.url, "published_at": p.published_at.isoformat(), "summary": p.summary,
              "source": p.source, "topics": p.topics} for p in items]
 
@@ -108,17 +120,26 @@ def _current(run: ScoringRun, factor: str, *, currency: str | None = None, pair:
     return {"score": f.score, "raw": f.raw_value, "stale": f.is_stale, "detail": f.detail} if f else None
 
 
+def subject_currencies(subject: str) -> list[str]:
+    """The economies behind a subject: a currency itself, both sides of a pair (gold's side has none), or an instrument's home."""
+    if subject in CURRENCY_CODES:
+        return [subject]
+    if is_equity(subject):
+        return [instrument(subject)["home"]]
+    return [c for c in Pair.objects.filter(symbol=subject).values_list("base__code", "quote__code").first() or [] if c]
+
+
 def factor_evidence(run: ScoringRun, subject: str, factor: str) -> dict:
-    """Evidence for one factor of a currency ("EUR") or a pair ("EURUSD")."""
+    """Evidence for one factor of a currency ("EUR"), a pair ("EURUSD") or an index, stock or coin ("SPX500")."""
     text = {"name": FACTOR_TEXT[factor][0], "about": FACTOR_TEXT[factor][1]}
-    if factor in FACTORS_PAIR:
+    if factor in FACTORS_PAIR or (factor == "cot" and is_equity(subject)):  # an instrument's own futures positioning
         obs, source = observations(factor, pair=subject)
-        link = PAIR_LINKS.get(factor)
+        link = COT_REPORT if factor == "cot" else PAIR_LINKS.get(factor)
         return {"subject": subject, "factor": factor, **text, "sides": [{
             "code": subject, "current": _current(run, factor, pair=subject), "observations": obs, "data_source": source,
             "official": {"label": link[0], "url": link[1]} if link else None, "news": [],
         }]}
-    codes = [subject] if len(subject) == 3 else list(Pair.objects.filter(symbol=subject).values_list("base__code", "quote__code").first() or [])
+    codes = subject_currencies(subject)
     sides = []
     for code in codes:
         obs, source = observations(factor, currency=code)
@@ -128,10 +149,16 @@ def factor_evidence(run: ScoringRun, subject: str, factor: str) -> dict:
             "official": {"label": link[0], "url": link[1]} if link else None,
             "news": news(code, factor) if factor != "cot" else [],  # positioning has no central bank news
         })
-    return {"subject": subject, "factor": factor, **text, "sides": sides,
+    # An index, stock or coin reads its home economy the stock-market way: inflation and rates count the other way round.
+    equity = {"equity_sign": EQUITY_SIGN[factor]} if is_equity(subject) and factor in EQUITY_SIGN else {}
+    return {"subject": subject, "factor": factor, **text, "sides": sides, **equity,
             "calendar": calendar(codes, factor) if factor != "cot" else [],
             "calendar_link": {"label": CALENDAR_LINK[0], "url": CALENDAR_LINK[1]}}
 
 
 def valid_factor(subject: str, factor: str) -> bool:
-    return factor in FACTORS_CURRENCY or (factor in FACTORS_PAIR and len(subject) == 6)
+    if subject in CURRENCY_CODES:
+        return factor in FACTORS_CURRENCY
+    if is_equity(subject):
+        return factor in EQUITY_FACTORS or factor in FACTORS_PAIR or (factor == "cot" and bool(instrument(subject)["cot"]))
+    return factor in FACTORS_CURRENCY or factor in FACTORS_PAIR

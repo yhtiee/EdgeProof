@@ -30,6 +30,7 @@ from .models import (
 from .reference import (
     BOARD_CONFIG,
     BOARD_MACRO,
+    EQUITY_FACTORS,
     FACTORS_CURRENCY,
     MERGE,
     METALS,
@@ -40,8 +41,11 @@ from .reference import (
     RELEASE_TITLES,
     SURVEY_SERIES,
     US_ONLY,
+    instrument,
+    is_equity,
     release_freq,
 )
+from .scoring import PAIR_WEIGHTS
 
 METAL_CODES = {code for code, *_ in METALS}
 
@@ -139,6 +143,7 @@ def compute(as_of: date, data: Data, cfg: dict, *, replay: bool = False) -> dict
 
     pairs = {}
     board = compute_board(as_of, data, cfg)
+    equity_weights = {f: cfg[f].weight for f in [*EQUITY_FACTORS, "cot"] if f in cfg}
     for p in Pair.objects.select_related("base", "quote"):
         closes = data.upto("trend", p.symbol, as_of)
         trend = scoring.score_trend(closes, th["trend"])
@@ -146,15 +151,33 @@ def compute(as_of: date, data: Data, cfg: dict, *, replay: bool = False) -> dict
         sentiment = data.upto("retail", p.symbol, as_of)
         retail = scoring.score_retail(sentiment[-1] if sentiment else None, th["retail"])
         retail.stale = _stale("retail", sentiment, as_of, cfg["retail"].refresh_window_days, replay)
-        cb, cq = currency_scores[p.base.code][0], currency_scores[p.quote.code][0]
-        score, detail = scoring.pair_score(cb, cq, trend, retail)
-        detail["agreement"] = scoring.agreement(score, factor_results[p.base.code], factor_results[p.quote.code], trend, retail)
+        cot = None
+        if is_equity(p.symbol):
+            # An index, stock or coin: its home economy read the stock-market way, plus its own futures positioning.
+            info = instrument(p.symbol)
+            if info["cot"]:
+                cot_obs = data.upto("cot", p.symbol, as_of)
+                cot = scoring.score_cot(cot_obs, th["cot"])
+                cot.stale = _stale("cot", cot_obs, as_of, cfg["cot"].refresh_window_days, replay)
+            economy, parts = scoring.equity_economy(factor_results[info["home"]], cot, equity_weights)
+            score, detail = scoring.instrument_score(economy, trend, retail)
+            if economy is not None:  # break the economy's share down by factor (they replace its total, so the parts still add up)
+                scale = PAIR_WEIGHTS["economy"] / detail["weights_used"]
+                rest = {k: v for k, v in detail["contributions"].items() if k != "economy"}
+                detail["contributions"] = {**{f: round(scale * v, 3) for f, v in parts.items()}, **rest}
+            detail.update(home=info["home"], economy=economy,
+                          agreement=scoring.equity_agreement(score, factor_results[info["home"]], cot, trend, retail))
+        else:
+            cb, cq = currency_scores[p.base.code][0], currency_scores[p.quote.code][0]
+            score, detail = scoring.pair_score(cb, cq, trend, retail)
+            detail["agreement"] = scoring.agreement(score, factor_results[p.base.code], factor_results[p.quote.code], trend, retail)
         row = board["pairs"][p.symbol]
         mom = scoreboard.momentum(row)
         final, mixed = scoreboard.final_bias(score, mom, _merge_weights(cfg))
         detail["board"] = row["columns"]
-        pairs[p.symbol] = {"pair": p, "score": score, "trend": trend, "retail": retail, "detail": detail, "close": closes[-1].value if closes else None,
-                           "board_score": row["score"], "board_label": row["label"], "momentum": mom, "final": final, "mixed": mixed}
+        pairs[p.symbol] = {"pair": p, "score": score, "trend": trend, "retail": retail, "cot": cot, "detail": detail,
+                           "close": closes[-1].value if closes else None, "board_score": row["score"], "board_label": row["label"],
+                           "momentum": mom, "final": final, "mixed": mixed}
     return {"factors": factor_results, "currencies": currency_scores, "pairs": pairs, "currency_objs": currencies, "board": board}
 
 
@@ -216,7 +239,7 @@ def compute_board(as_of: date, data: Data, cfg: dict) -> dict:
     retail_window = cfg["retail"].refresh_window_days if "retail" in cfg else 3
     rows = {}
     for p in Pair.objects.select_related("base", "quote"):
-        sym, b, q = p.symbol, p.base.code, p.quote.code
+        sym = p.symbol
         closes = [o.value for o in data.upto("trend", sym, as_of)]
         monthly = [(o.period, o.extra.get("open"), o.value) for o in data.upto("monthly", sym, as_of)]
         sentiment = _latest(data.upto("retail", sym, as_of), as_of, retail_window)
@@ -225,6 +248,13 @@ def compute_board(as_of: date, data: Data, cfg: dict) -> dict:
             "seasonality": scoreboard.seasonality(monthly, as_of.month, as_of, BOARD_CONFIG["seasonality"]),
             "crowd": scoreboard.crowd(sentiment.value if sentiment else None, BOARD_CONFIG["crowd"]),
         }
+        if is_equity(sym):
+            info = instrument(sym)
+            tech["cot"] = (scoreboard.cot_change(reports(sym)) if info["cot"]
+                           else scoreboard.Cell(None, "none", {"reason": "No futures contract in the CFTC report."}))
+            rows[sym] = scoreboard.instrument_row(info["home"], tech, macro)
+            continue
+        b, q = p.base.code, p.quote.code
         gold_rate = None
         if b in METAL_CODES:
             tech["cot"] = scoreboard.cot_gold(reports(b))
@@ -272,7 +302,9 @@ def save_run(as_of: date, result: dict, *, snapshot: bool, replay: bool, version
                  if not replay else None)
     before_board = dict(PairScore.objects.filter(run=yesterday).values_list("pair__symbol", "board_score")) if yesterday else {}
     for sym, p in result["pairs"].items():
-        for r in (p["trend"], p["retail"]):
+        for r in (p["trend"], p["retail"], p["cot"]):  # cot: an instrument's own futures positioning
+            if r is None:
+                continue
             factor_rows.append(FactorScore(run=run, factor=r.factor, pair=p["pair"], raw_value=r.raw, score=r.score, is_stale=r.stale, detail=r.detail))
         prev_board = before_board.get(sym)
         pair_rows.append(PairScore(

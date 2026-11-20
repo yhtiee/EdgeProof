@@ -3,12 +3,12 @@ import { PageHeader } from '../../components/layout/PageHeader'
 
 /**
  * Fundamental Bias Scanner home (docs/scanner/fundamental-bias-scanner.md §5).
- * Open to every signed-in learner, no gate. Four tabs: the pair rankings (final
+ * Open to every signed-in learner, no gate. Four tabs: the rankings of every pair, index, stock and coin (final
  * bias), the 18-column scoreboard (docs/scanner/scoreboard.md), the currency
  * strength board and the evidence for how well the labels have held up.
  */
 const TABS = [
-  { to: '/scanner', label: 'Pairs', end: true },
+  { to: '/scanner', label: 'Markets', end: true },
   { to: '/scanner/scoreboard', label: 'Scoreboard' },
   { to: '/scanner/currencies', label: 'Currencies' },
   { to: '/scanner/evidence', label: 'Evidence' },
@@ -19,7 +19,7 @@ export default function ScannerLayout() {
     <div>
       <PageHeader
         title="Scanner"                                                            
-        description="Where the fundamentals lean for 28 major pairs and gold, from rates, inflation, growth, jobs, business confidence, positioning and how the latest data compared with forecasts. A starting point for your own analysis."
+        description="Where the fundamentals lean for 28 major pairs, gold, and the top 10 stock indices, stocks and coins, from rates, inflation, growth, jobs, business confidence, positioning and how the latest data compared with forecasts. A starting point for your own analysis."
       />
       <nav aria-label="Scanner" className="-mt-4 mb-6 flex gap-1 overflow-x-auto border-b border-border">
         {TABS.map((t) => (

@@ -14,6 +14,8 @@
 
 **Final bias = 0.5 × regime + 0.5 × momentum.** The Pairs tab ranks by it (most bullish first) and uses the existing five labels (±2, ±6). Trend, retail and COT count once, inside the regime score. If momentum has fewer than 5 macro columns with data, the final bias is the regime score alone. **Mixed** marks a pair whose two halves are both at least ±2 and point opposite ways. The weight is a `FactorConfig` row named `momentum`, so it can be tuned without code; revisit it once 12 weekly snapshots carry momentum.
 
+Indices, stocks and coins (added 19 Nov 2026) use the same two models, reading their home economy the stock-market way: see [markets.md](markets.md).
+
 The **Scoreboard** tab shows the benchmark-style board on its own (18 columns, plain sum, its own labels) so its match with the benchmark can be measured.
 
 ## 2. Scoreboard rules (from the method's published documentation, checked against the benchmark)

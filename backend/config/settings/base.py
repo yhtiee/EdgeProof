@@ -90,6 +90,7 @@ INSTALLED_APPS = [
     "apps.ladder",
     "apps.ai",
     "apps.scanner",
+    "apps.news",
     "apps.audit",
 ]
 

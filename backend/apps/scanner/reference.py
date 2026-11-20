@@ -25,7 +25,63 @@ PAIRS = [a + b for i, a in enumerate(ORDER) for b in ORDER[i + 1:]]
 # the regime model scores it from positioning alone, and the scoreboard mirrors USD data.
 METALS = [("XAU", "Gold", "", "088691", 0.0)]  # CFTC 088691: gold, COMEX
 GOLD_PAIRS = ["XAUUSD"]
-ALL_PAIRS = PAIRS + GOLD_PAIRS
+
+# Beyond FX (founder decision 19 Nov 2026; docs/scanner/markets.md): the top 10 stock indices,
+# stocks and coins by market value (stablecoins left out), ranked on 19 Nov 2026 (stocks) and
+# 8 Nov 2026 (crypto). Each reads its home economy the stock-market way (EQUITY_SIGN below);
+# coins count as US risk assets. Prices come from Twelve Data's free plan, which has no index
+# levels, so each index is tracked by an ETF that follows it (priced in US dollars).
+# symbol: (name, market, home economy, Twelve Data symbol, CFTC contract code or "")
+INSTRUMENTS = {
+    "SPX500": ("S&P 500", "index", "USD", "SPY", "13874A"),
+    "NAS100": ("Nasdaq 100", "index", "USD", "QQQ", "209742"),
+    "US30": ("Dow Jones 30", "index", "USD", "DIA", "124603"),
+    "US2000": ("Russell 2000", "index", "USD", "IWM", "239742"),
+    "GER40": ("DAX 40", "index", "EUR", "EWG", ""),
+    "EU50": ("Euro Stoxx 50", "index", "EUR", "FEZ", ""),
+    "FRA40": ("CAC 40", "index", "EUR", "EWQ", ""),
+    "UK100": ("FTSE 100", "index", "GBP", "EWU", ""),
+    "JPN225": ("Nikkei 225", "index", "JPY", "EWJ", "240743"),  # CFTC: Nikkei, yen-denominated
+    "AUS200": ("ASX 200", "index", "AUD", "EWA", ""),
+    "AAPL": ("Apple", "stock", "USD", "AAPL", ""),
+    "MSFT": ("Microsoft", "stock", "USD", "MSFT", ""),
+    "NVDA": ("Nvidia", "stock", "USD", "NVDA", ""),
+    "GOOGL": ("Alphabet", "stock", "USD", "GOOGL", ""),
+    "AMZN": ("Amazon", "stock", "USD", "AMZN", ""),
+    "SPCX": ("SpaceX", "stock", "USD", "SPCX", ""),
+    "AVGO": ("Broadcom", "stock", "USD", "AVGO", ""),
+    "META": ("Meta Platforms", "stock", "USD", "META", ""),
+    "TSLA": ("Tesla", "stock", "USD", "TSLA", ""),
+    "LLY": ("Eli Lilly", "stock", "USD", "LLY", ""),
+    "BTCUSD": ("Bitcoin", "crypto", "USD", "BTC/USD", "133741"),
+    "ETHUSD": ("Ethereum", "crypto", "USD", "ETH/USD", "146021"),
+    "BNBUSD": ("BNB", "crypto", "USD", "BNB/USD", ""),
+    "XRPUSD": ("XRP", "crypto", "USD", "XRP/USD", "176740"),
+    "SOLUSD": ("Solana", "crypto", "USD", "SOL/USD", "177741"),
+    "TRXUSD": ("TRON", "crypto", "USD", "TRX/USD", ""),
+    "ZECUSD": ("Zcash", "crypto", "USD", "ZEC/USD", ""),
+    "HYPEUSD": ("Hyperliquid", "crypto", "USD", "HYPE/USDT", ""),  # no HYPE/USD listing; USDT tracks the dollar
+    "XMRUSD": ("Monero", "crypto", "USD", "XMR/USD", ""),
+    "DOGEUSD": ("Dogecoin", "crypto", "USD", "DOGE/USD", ""),
+}
+ALL_PAIRS = PAIRS + GOLD_PAIRS + list(INSTRUMENTS)
+MARKETS = {"forex": "Forex", "metal": "Metals", "index": "Indices", "stock": "Stocks", "crypto": "Crypto"}
+EQUITY_MARKETS = {"index", "stock", "crypto"}
+
+
+def instrument(symbol: str) -> dict:
+    """Display and data facts for any scanner symbol: name, market, home economy, price symbol and the ETF behind an index."""
+    if symbol in INSTRUMENTS:
+        name, market, home, price, cot = INSTRUMENTS[symbol]
+        return {"name": name, "market": market, "home": home, "price_symbol": price, "cot": cot,
+                "proxy": price if market == "index" else ""}
+    if symbol in GOLD_PAIRS:
+        return {"name": "Gold", "market": "metal", "home": None, "price_symbol": f"{symbol[:3]}/{symbol[3:]}", "cot": "", "proxy": ""}
+    return {"name": f"{symbol[:3]}/{symbol[3:]}", "market": "forex", "home": None, "price_symbol": f"{symbol[:3]}/{symbol[3:]}", "cot": "", "proxy": ""}
+
+
+def is_equity(symbol: str) -> bool:
+    return symbol in INSTRUMENTS
 
 FACTORS_CURRENCY = ["cot", "rates", "inflation", "growth", "labour", "business"]
 FACTORS_PAIR = ["trend", "retail"]
@@ -55,14 +111,14 @@ LABEL_TEXT = {
 }
 
 FACTOR_TEXT = {
-    "cot": ("Speculator positioning (COT)", "How large speculators are positioned in this currency's futures, ranked against the last 52 weeks. Heavy buying ranks high."),
+    "cot": ("Speculator positioning (COT)", "How large speculators are positioned in the futures contract, ranked against the last 52 weeks. Heavy buying ranks high."),
     "rates": ("Interest rates", "The central bank's policy rate and the direction of its last change. Rising rates tend to support a currency."),
     "inflation": ("Inflation", "Consumer prices over the last year against the central bank's target. Inflation above target points to higher rates, which tends to support the currency."),
     "growth": ("Growth", "Real GDP growth over the last two quarters. A growing economy tends to attract capital."),
     "labour": ("Labour market", "The change in the unemployment rate over three months. Falling unemployment is a sign of strength."),
     "business": ("Business confidence", "The OECD business confidence index (100 = long-run average) and its direction."),
-    "trend": ("Price trend", "The pair's price against its 20, 50 and 200-day averages, and whether the 50-day average is rising."),
-    "retail": ("Retail sentiment", "The share of retail traders who are long this pair. Read contrarian: a crowd heavily long scores bearish."),
+    "trend": ("Price trend", "The price against its 20, 50 and 200-day averages, and whether the 50-day average is rising."),
+    "retail": ("Retail sentiment", "The share of retail traders who are long. Read contrarian: a crowd heavily long scores bearish."),
 }
 # The Academy lesson that teaches each factor (designer note).
 FACTOR_LESSON = {
@@ -94,6 +150,29 @@ CENTRAL_BANK_FEEDS = {
     "CAD": ["https://www.bankofcanada.ca/content_type/press-releases/feed/"],
     "CHF": ["https://www.snb.ch/public/en/rss/pressrel", "https://www.snb.ch/public/en/rss/news"],
 }
+
+# News headlines (docs/news.md): more official feeds, probed 20 Nov 2026. Speech feeds sit beside
+# the banks' press feeds; statistics agencies cover the data releases. Each entry is
+# (currency, url, publisher name, publisher type, the kind an item gets when its title doesn't say).
+# BLS and Statistics Canada block automated requests; ABS, Stats NZ, e-Stat and the Swiss FSO
+# have no working feed, so those agencies aren't listed.
+NEWS_EXTRA_FEEDS = [
+    ("USD", "https://www.federalreserve.gov/feeds/speeches.xml", "Federal Reserve", "bank", "speech"),
+    ("GBP", "https://www.bankofengland.co.uk/rss/speeches", "Bank of England", "bank", "speech"),
+    ("CAD", "https://www.bankofcanada.ca/content_type/speeches/feed/", "Bank of Canada", "bank", "speech"),
+    ("USD", "https://apps.bea.gov/rss/rss.xml", "US Bureau of Economic Analysis", "statistics", "data"),
+    ("GBP", "https://www.ons.gov.uk/releasecalendar?rss", "Office for National Statistics", "statistics", "data"),
+    ("EUR", "https://www.ecb.europa.eu/rss/statpress.html", "European Central Bank (statistics)", "statistics", "data"),
+]
+# A headline's kind from its title (first match wins), else the feed's default.
+NEWS_KINDS = [
+    ("decision", ["rate decision", "monetary policy decision", "policy decision", "decides", "decided", "fomc statement", "rate statement",
+                  "monetary policy statement", "policy rate", "bank rate", "cash rate", "monetary policy assessment", "interest rate announcement"]),
+    ("minutes", ["minutes", "account of the monetary policy", "summary of opinions", "summary of deliberations"]),
+    ("speech", ["speech", "remarks", "testimony", "lecture", "keynote", "fireside", "panel", "speaks", "address by", "opening statement"]),
+    ("report", ["report", "outlook", "review", "bulletin", "survey", "projections", "beige book", "financial stability"]),
+]
+NEWS_KIND_TEXT = {"decision": "Decision", "minutes": "Minutes", "speech": "Speech", "report": "Report", "data": "Data release", "press": "Press release"}
 
 # Which publications back which factor. Items that match none (bank notes, enforcement
 # actions, staff news) are not stored.
@@ -178,7 +257,9 @@ def official_link(code: str, factor: str) -> tuple[str, str] | None:
 # Forex Factory's free weekly calendar (no key, unofficial: cache it, link back, don't resell).
 CALENDAR_FEEDS = ["https://nfs.faireconomy.media/ff_calendar_thisweek.json", "https://nfs.faireconomy.media/ff_calendar_nextweek.json"]
 CALENDAR_LINK = ("Forex Factory calendar", "https://www.forexfactory.com/calendar")
-CALENDAR_IMPACTS = ("High", "Medium")
+CALENDAR_IMPACTS = ("High", "Medium")  # what the scanner's evidence and "Coming up" lists show
+# The News calendar keeps every level (docs/news.md). The feed also lists China and "ALL" events; we keep our 8 currencies.
+NEWS_IMPACTS = ("High", "Medium", "Low", "Holiday")
 # Event title words → the scanner factor the release feeds (first match wins).
 CALENDAR_FACTORS = [
     ("rates", ["rate statement", "rate decision", "interest rate", "cash rate", "bank rate", "federal funds", "policy rate",
@@ -327,6 +408,13 @@ BOARD_CONFIG = {
 }
 # Board score → label (≥7 Very Bullish, 4…6 Bullish, −3…3 Neutral, −6…−4 Bearish, ≤−7 Very Bearish).
 BOARD_LABELS = [(7, "very_bullish"), (4, "bullish"), (-3, "neutral"), (-6, "bearish")]
+
+# The stock-market reading of an economy (founder decision 19 Nov 2026), for indices, stocks and
+# coins. Growth, jobs, business confidence and spending help; hot inflation and higher rates hurt,
+# because a tighter central bank raises borrowing costs and the return on cash.
+EQUITY_SIGN = {"rates": -1, "inflation": -1, "growth": 1, "labour": 1, "business": 1}
+EQUITY_FACTORS = list(EQUITY_SIGN)
+EQUITY_BOARD_SIGN = {ind: -1 if ind in ("cpi", "ppi", "pce", "rates") else 1 for ind in BOARD_MACRO}
 
 # Final bias = blend of the regime score (the weighted model) and the momentum score (the
 # scoreboard's macro columns and seasonality, scaled to −10…+10). "Mixed" when they disagree.

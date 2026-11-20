@@ -11,9 +11,9 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from itertools import pairwise
 
-from .reference import FACTORS_CURRENCY, LABEL_TEXT, RELEASE_LAG_DAYS
+from .reference import EQUITY_SIGN, FACTORS_CURRENCY, LABEL_TEXT, RELEASE_LAG_DAYS
 
-PAIR_WEIGHTS = {"difference": 0.7, "trend": 0.15, "retail": 0.15}
+PAIR_WEIGHTS = {"difference": 0.7, "economy": 0.7, "trend": 0.15, "retail": 0.15}
 
 
 @dataclass(frozen=True)
@@ -245,6 +245,48 @@ def pair_score(c_base: float | None, c_quote: float | None, trend: FactorResult,
     p = sum(PAIR_WEIGHTS[k] * v for k, v in parts.items()) / total_w
     contrib = {k: round(PAIR_WEIGHTS[k] * v / total_w, 3) for k, v in parts.items()}
     return round(p, 2), {"components": {k: round(v, 3) for k, v in parts.items()}, "contributions": contrib, "weights_used": round(total_w, 2)}
+
+
+def equity_economy(home: dict[str, FactorResult], cot: FactorResult | None, weights: dict[str, float],
+                   signs: dict[str, int] = EQUITY_SIGN, max_missing: int = 2) -> tuple[float | None, dict[str, float]]:
+    """
+    The home economy read the stock-market way, plus the instrument's own futures positioning:
+    E = Σ w·sign·f / (2·Σ w) × 10 over the factors present (−10…+10). More than `max_missing` of
+    the economy's factors missing → insufficient. Also returns each factor's share of E.
+    """
+    used = {f: signs[f] * r.score for f, r in home.items() if f in signs and f in weights and r.score is not None and not r.stale}
+    if len(signs) - len(used) > max_missing:
+        return None, {}
+    if cot is not None and cot.score is not None and not cot.stale and "cot" in weights:
+        used["cot"] = cot.score
+    total_w = sum(weights[f] for f in used)
+    parts = {f: weights[f] * s / (2 * total_w) * 10 for f, s in used.items()}
+    return round(sum(parts.values()), 2), {f: round(v, 3) for f, v in parts.items()}
+
+
+def instrument_score(economy: float | None, trend: FactorResult, retail: FactorResult) -> tuple[float | None, dict]:
+    """P = 0.7·E + 0.15·5T + 0.15·5R for an index, stock or coin, renormalising if T or R is missing."""
+    if economy is None:
+        return None, {"reason": "insufficient data for the home economy"}
+    parts = {"economy": economy}
+    for r in (trend, retail):
+        if r.score is not None and not r.stale:
+            parts[r.factor] = 5 * r.score
+    total_w = sum(PAIR_WEIGHTS[k] for k in parts)
+    p = sum(PAIR_WEIGHTS[k] * v for k, v in parts.items()) / total_w
+    contrib = {k: round(PAIR_WEIGHTS[k] * v / total_w, 3) for k, v in parts.items()}
+    return round(p, 2), {"components": {k: round(v, 3) for k, v in parts.items()}, "contributions": contrib, "weights_used": round(total_w, 2)}
+
+
+def equity_agreement(score: float | None, home: dict[str, FactorResult], cot: FactorResult | None, trend: FactorResult, retail: FactorResult,
+                     signs: dict[str, int] = EQUITY_SIGN) -> dict:
+    """How many factors point the same way as an instrument's score, on the stock-market reading (display only)."""
+    if not score:
+        return {"agree": 0, "of": 0}
+    direction = 1 if score > 0 else -1
+    values = [signs[f] * r.score for f, r in home.items() if f in signs and r.score and not r.stale]
+    values += [r.score for r in (cot, trend, retail) if r is not None and r.score and not r.stale]
+    return {"agree": sum(1 for v in values if (v > 0) == (direction > 0)), "of": len(values)}
 
 
 def agreement(score: float | None, base: dict[str, FactorResult], quote: dict[str, FactorResult], trend: FactorResult, retail: FactorResult) -> dict:

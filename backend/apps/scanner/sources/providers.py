@@ -5,6 +5,7 @@ SourceError so ingestion can record the source's health and carry on.
 
 import csv
 import io
+import logging
 import time
 import urllib.parse
 import zipfile
@@ -13,10 +14,15 @@ from datetime import date, timedelta
 from django.conf import settings
 from django.utils import timezone
 
-from ..reference import ALL_PAIRS, CURRENCIES, METALS
+from ..reference import ALL_PAIRS, CURRENCIES, INSTRUMENTS, METALS, instrument
 from . import Row, SourceError, get, get_json, get_text, number, parse_period
 
-COT_CODES = {code: cot for code, _, _, cot, _ in CURRENCIES + METALS}
+log = logging.getLogger(__name__)
+
+# Subject (currency, metal, or index/coin symbol) → CFTC contract code.
+COT_CODES = {code: cot for code, _, _, cot, _ in CURRENCIES + METALS} | {sym: i[4] for sym, i in INSTRUMENTS.items() if i[4]}
+# Twelve Data symbol → our symbol ("EUR/USD" → "EURUSD", "SPY" → "SPX500", "BTC/USD" → "BTCUSD").
+PRICE_SYMBOLS = {instrument(sym)["price_symbol"]: sym for sym in ALL_PAIRS}
 BIS_AREAS = {"US": "USD", "XM": "EUR", "GB": "GBP", "JP": "JPY", "AU": "AUD", "NZ": "NZD", "CA": "CAD", "CH": "CHF"}
 OECD_AREAS = {"USA": "USD", "EA20": "EUR", "GBR": "GBP", "JPN": "JPY", "AUS": "AUD", "NZL": "NZD", "CAN": "CAD", "CHE": "CHF"}
 
@@ -25,7 +31,7 @@ OECD_AREAS = {"USA": "USD", "EA20": "EUR", "GBR": "GBP", "JPN": "JPY", "AUS": "A
 
 
 def cftc(start: date) -> list[Row]:
-    """Net non-commercial position per currency future. History from yearly zips, this week from deafut.txt."""
+    """Net non-commercial position per currency, gold, index and coin future. History from yearly zips, this week from deafut.txt."""
     by_code = {v: k for k, v in COT_CODES.items()}
     rows: dict[tuple[str, date], Row] = {}
 
@@ -265,12 +271,20 @@ def dbnomics_japan_cpi(start: date) -> list[Row]:
 # --- Twelve Data (daily closes) --------------------------------------------------------------
 
 
+def _priced(rows: list[Row], failed: list[str]) -> list[Row]:
+    if failed:
+        log.warning("Twelve Data skipped %d symbols: %s", len(failed), "; ".join(failed))
+        if not rows:
+            raise SourceError("Twelve Data: " + "; ".join(failed[:3]))
+    return rows
+
+
 def twelvedata_prices(days: int) -> list[Row]:
     key = settings.SCANNER["twelvedata_key"]
     if not key:
         raise SourceError("TWELVEDATA_API_KEY is not set")
-    out = []
-    symbols = [f"{p[:3]}/{p[3:]}" for p in ALL_PAIRS]
+    out, failed = [], []
+    symbols = list(PRICE_SYMBOLS)
     for i in range(0, len(symbols), 8):  # free tier: 8 credits a minute
         batch = symbols[i:i + 8]
         d = get_json("https://api.twelvedata.com/time_series?" + urllib.parse.urlencode(
@@ -278,22 +292,23 @@ def twelvedata_prices(days: int) -> list[Row]:
         if len(batch) == 1:
             d = {batch[0]: d}
         for sym, payload in d.items():
-            if payload.get("status") != "ok":
-                raise SourceError(f"Twelve Data {sym}: {payload.get('message', 'error')}")
+            if payload.get("status") != "ok":  # one bad symbol shouldn't cost every other instrument its prices
+                failed.append(f"{sym}: {payload.get('message', 'error')}"[:120])
+                continue
             for v in payload.get("values", []):
-                out.append(Row("trend", sym.replace("/", ""), date.fromisoformat(v["datetime"][:10]), float(v["close"]), "D", "close"))
+                out.append(Row("trend", PRICE_SYMBOLS[sym], date.fromisoformat(v["datetime"][:10]), float(v["close"]), "D", "close"))
         if i + 8 < len(symbols):
             time.sleep(62)
-    return out
+    return _priced(out, failed)
 
 
 def twelvedata_monthly() -> list[Row]:
-    """Monthly open and close for every pair and gold, about 16 years (the scoreboard's seasonality)."""
+    """Monthly open and close for every instrument, about 16 years (the scoreboard's seasonality)."""
     key = settings.SCANNER["twelvedata_key"]
     if not key:
         raise SourceError("TWELVEDATA_API_KEY is not set")
-    out = []
-    symbols = [f"{p[:3]}/{p[3:]}" for p in ALL_PAIRS]
+    out, failed = [], []
+    symbols = list(PRICE_SYMBOLS)
     time.sleep(62)  # runs straight after the daily fetch, which spends this minute's credits
     for i in range(0, len(symbols), 8):  # free tier: 8 credits a minute
         batch = symbols[i:i + 8]
@@ -302,14 +317,15 @@ def twelvedata_monthly() -> list[Row]:
         if len(batch) == 1:
             d = {batch[0]: d}
         for sym, payload in d.items():
-            if payload.get("status") != "ok":
-                raise SourceError(f"Twelve Data {sym}: {payload.get('message', 'error')}")
+            if payload.get("status") != "ok":  # one bad symbol shouldn't cost every other instrument its prices
+                failed.append(f"{sym}: {payload.get('message', 'error')}"[:120])
+                continue
             for v in payload.get("values", []):
-                out.append(Row("monthly", sym.replace("/", ""), date.fromisoformat(v["datetime"][:10]).replace(day=1), float(v["close"]), "M",
+                out.append(Row("monthly", PRICE_SYMBOLS[sym], date.fromisoformat(v["datetime"][:10]).replace(day=1), float(v["close"]), "M",
                                "close", {"open": float(v["open"])}))
         if i + 8 < len(symbols):
             time.sleep(62)
-    return out
+    return _priced(out, failed)
 
 
 # --- Myfxbook (retail sentiment) ------------------------------------------------------------
@@ -367,4 +383,6 @@ JOBS = {
     "fetch_prices": ["twelvedata", "twelvedata_monthly"],
     "fetch_sentiment": ["myfxbook"],
     "fetch_news": ["news", "calendar", "releases"],
+    # The News calendar: forecasts and actuals through the day (Forex Factory rate-limits repeated fetches, so four a day at most).
+    "fetch_calendar": ["calendar", "releases"],
 }

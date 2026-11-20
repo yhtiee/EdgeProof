@@ -1,11 +1,11 @@
 import { NavLink, Outlet } from 'react-router'
-import { BookOpen, FlaskConical, NotebookPen, Radar } from 'lucide-react'
+import { BookOpen, FlaskConical, Newspaper, NotebookPen, Radar } from 'lucide-react'
 import { ServerStatusBanner } from '../ui'
 import { AppHeader } from './AppHeader'
 import { Logo } from './Logo'
 
 /**
- * App shell (DESIGN.md §5): four destinations; settings live in the account menu. Bottom tab bar on mobile,
+ * App shell (DESIGN.md §5): five destinations; settings live in the account menu. Bottom tab bar on mobile,
  * left sidebar at 1024 px and up.
  */
 const NAV = [
@@ -14,6 +14,8 @@ const NAV = [
   { to: '/lab', label: 'Lab', icon: FlaskConical },
   // Progress lives in the profile; the scanner took its slot (docs/scanner §5).
   { to: '/scanner', label: 'Scanner', icon: Radar },
+  // The economic calendar and official headlines (docs/news.md).
+  { to: '/news', label: 'News', icon: Newspaper },
 ] as const
 
 export function AppShell() {

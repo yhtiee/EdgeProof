@@ -9,7 +9,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 
-from ..reference import CALENDAR_FACTORS, CALENDAR_FEEDS, CALENDAR_IMPACTS, ORDER
+from ..reference import CALENDAR_FACTORS, CALENDAR_FEEDS, NEWS_IMPACTS, ORDER
 from . import SourceError, get
 
 
@@ -36,7 +36,7 @@ def parse(data: list[dict]) -> list[Event]:
     out = []
     for e in data:
         code, impact, title = e.get("country", ""), e.get("impact", ""), (e.get("title") or "").strip()
-        if code not in ORDER or impact not in CALENDAR_IMPACTS or not title:
+        if code not in ORDER or impact not in NEWS_IMPACTS or not title:
             continue
         try:
             at = datetime.fromisoformat(e["date"])

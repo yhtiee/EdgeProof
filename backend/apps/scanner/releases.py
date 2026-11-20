@@ -13,6 +13,7 @@ macro cell.
 
 import logging
 import re
+from collections import defaultdict
 from datetime import datetime, time, timedelta
 from datetime import timezone as dt_timezone
 from itertools import pairwise
@@ -20,9 +21,9 @@ from zoneinfo import ZoneInfo
 
 from django.utils import timezone
 
-from .models import Currency, Release
+from .models import CalendarEvent, Currency, Release
 from .reference import FRED_ACTUALS, RELEASE_INDEX, SURVEY_SERIES
-from .scoreboard import parse_number
+from .scoreboard import SUFFIX, parse_number
 from .sources import SourceError
 from .sources.providers import (
     eurostat_survey,
@@ -175,6 +176,53 @@ def resolve_surveys(now: datetime | None = None) -> int:
         except SourceError as exc:
             log.warning("survey %s %s failed: %s", code, series, exc)
     return made
+
+
+# --- The News calendar's actual column (docs/news.md) ---------------------------------------
+
+
+def format_like(value: float, template: str) -> str:
+    """A number in the calendar's own style: 194000 with "200K" → "194K"; 0.31 with "0.3%" → "0.3%"."""
+    shown = parse_number(template)
+    if not shown:
+        return f"{round(value, 2):g}"
+    _, mult, decimals = shown
+    suffix = next((k for k, v in SUFFIX.items() if v == mult), "") if mult != 1 else ""
+    return f"{value / mult:.{decimals}f}{suffix}{'%' if '%' in template else ''}"
+
+
+def fill_calendar_actuals(now: datetime | None = None) -> int:
+    """
+    Every released calendar event gets an actual where we can find one: the official first print the
+    scoreboard fetched (US series from FRED), else the "previous" figure the next release of the same
+    series lists (it can include a revision). Events with neither stay blank and link to the source.
+    """
+    now = now or timezone.now()
+    events = list(CalendarEvent.objects.order_by("at"))
+    if not events:
+        return 0
+    official = {(r.currency_id, r.title, r.at): r for r in Release.objects.filter(actual__isnull=False, at__gte=events[0].at)}
+    series: dict[tuple, list[CalendarEvent]] = defaultdict(list)
+    for e in events:
+        series[(e.currency_id, family(e.title))].append(e)
+    changed = []
+    for items in series.values():
+        for i, e in enumerate(items):
+            if e.at > now or e.impact == "Holiday":
+                continue
+            r = official.get((e.currency_id, e.title[:120], e.at))
+            if r is not None:
+                text, source = format_like(r.actual, e.forecast or e.previous), r.actual_source
+            else:
+                nxt = next((x for x in items[i + 1:] if x.previous), None)
+                if nxt is None:
+                    continue
+                text, source = nxt.previous, f"previous figure on the {nxt.at:%d %b} release"
+            if (e.actual, e.actual_source) != (text[:40], source[:80]):
+                e.actual, e.actual_source = text[:40], source[:80]
+                changed.append(e)
+    CalendarEvent.objects.bulk_update(changed, ["actual", "actual_source", "updated_at"])
+    return len(changed)
 
 
 def resolve_all() -> dict:

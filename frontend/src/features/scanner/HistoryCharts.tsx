@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Segmented } from '../../components/ui'
 import { useHistory, type HistoryPoint } from './api'
-import { BANDS, LABEL_TEXT, formatDate, formatScore } from './format'
+import { BANDS, LABEL_TEXT, formatDate, formatPrice, formatScore } from './format'
 
 /**
  * Bias history (docs/scanner §5): two stacked charts on one time axis (score
@@ -54,7 +54,6 @@ export function HistoryCharts({ symbol }: { symbol: string }) {
   const xAt = (i: number) => (points.length === 1 ? W / 2 : (i / (points.length - 1)) * W)
   const firstLive = points.find((pt) => !pt.replay)
   const replayed = points.filter((pt) => pt.replay).length
-  const digits = hi >= 20 ? 2 : 4
 
   const pick = (e: React.PointerEvent<SVGSVGElement>) => {
     const box = e.currentTarget.getBoundingClientRect()
@@ -110,7 +109,7 @@ export function HistoryCharts({ symbol }: { symbol: string }) {
             <span className="text-muted">{p && formatDate(p.as_of)}</span>
             <span className="font-semibold">{p && formatScore(p.score)}</span>
             <span className="font-sans text-muted">{p && LABEL_TEXT[p.label]}</span>
-            <span className="text-muted">{p?.close != null ? `Close ${p.close.toFixed(digits)}` : ''}</span>
+            <span className="text-muted">{p?.close != null ? `Close ${formatPrice(p.close)}` : ''}</span>
             {p?.replay && <span className="font-sans text-caption text-subtle">replayed</span>}
           </p>
           <svg

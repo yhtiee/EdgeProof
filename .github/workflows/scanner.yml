@@ -10,6 +10,10 @@ on:
     - cron: "0 1 * * 6"     # fetch_cot       Saturday 02:00 WAT (weekly snapshot)
     - cron: "0 6 * * *"     # check_health    07:00 WAT daily
     - cron: "30 5 * * *"    # fetch_news      06:30 WAT daily (central bank feeds + Forex Factory calendar, once a day)
+    # News calendar actuals through the trading day (docs/news.md): after European, US and late US releases.
+    - cron: "0 10 * * 1-5"  # fetch_calendar  11:00 WAT weekdays
+    - cron: "0 14 * * 1-5"  # fetch_calendar  15:00 WAT weekdays (after 08:30 New York releases)
+    - cron: "0 20 * * 1-5"  # fetch_calendar  21:00 WAT weekdays
   workflow_dispatch:
     inputs:
       job: { description: "Job to run", required: true, default: "run_scoring" }
@@ -28,6 +32,7 @@ jobs:
             "0 1 * * 6")   echo "job=fetch_cot" >> "$GITHUB_OUTPUT" ;;
             "0 6 * * *")   echo "job=check_health" >> "$GITHUB_OUTPUT" ;;
             "30 5 * * *")  echo "job=fetch_news" >> "$GITHUB_OUTPUT" ;;
+            "0 10 * * 1-5"|"0 14 * * 1-5"|"0 20 * * 1-5") echo "job=fetch_calendar" >> "$GITHUB_OUTPUT" ;;
             *)             echo "job=${{ github.event.inputs.job }}" >> "$GITHUB_OUTPUT" ;;
           esac
       - name: Call the API (retries while a sleeping host wakes)

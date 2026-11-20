@@ -3,20 +3,34 @@ import { ChevronDown, ExternalLink } from 'lucide-react'
 import { EmptyState, Segmented, SelectField } from '../../components/ui'
 import { BottomSheet } from '../../components/ui/BottomSheet'
 import { useScoreboard, type BoardCell, type BoardColumn, type BoardRow, type BoardSide, type Scoreboard } from './api'
-import { CELL_STATUS_TEXT, LABEL_ORDER, LABEL_TEXT, describeRelease, filterBoard, formatDate, formatInt, formatScore, instrumentName } from './format'
+import {
+  CELL_STATUS_TEXT,
+  LABEL_ORDER,
+  LABEL_TEXT,
+  MARKET_OPTIONS,
+  describeRelease,
+  filterBoard,
+  formatDate,
+  formatInt,
+  formatScore,
+  hasCurrencies,
+  instrumentName,
+} from './format'
 import { LabelChip, ScannerProblem, Skeleton, TrustLine } from './parts'
 
 /**
- * The scoreboard (docs/scanner/scoreboard.md): 18 whole-number columns per pair and gold,
- * summed, most bullish first. Technical and sentiment columns are scored per pair; macro
- * columns per currency, base minus quote. Every cell opens the release or reading behind it.
- * Phones get one row per instrument that expands; wider screens get the full table.
+ * The scoreboard (docs/scanner/scoreboard.md): 18 whole-number columns per instrument,
+ * summed, most bullish first. Technical and sentiment columns are scored per instrument; macro
+ * columns per currency, base minus quote for pairs, and the home economy read the stock-market
+ * way for indices, stocks and coins (docs/scanner/markets.md). Every cell opens the release or
+ * reading behind it. Phones get one row per instrument that expands; wider screens get the table.
  */
 const CURRENCIES = ['EUR', 'GBP', 'AUD', 'NZD', 'USD', 'CAD', 'CHF', 'JPY', 'XAU']
 type Group = 'all' | 'tech' | 'macro'
 
 export default function ScoreboardPage() {
   const board = useScoreboard()
+  const [market, setMarket] = useState('')
   const [label, setLabel] = useState('')
   const [currency, setCurrency] = useState('')
   const [group, setGroup] = useState<Group>('all')
@@ -24,28 +38,37 @@ export default function ScoreboardPage() {
 
   if (board.isError) return <ScannerProblem error={board.error} />
   const data = board.data
-  const rows = data ? filterBoard(data.rows, { label, currency }) : []
+  const rows = data ? filterBoard(data.rows, { market, label, currency: hasCurrencies(market) ? currency : '' }) : []
   const columns = data ? (group === 'tech' ? data.groups.tech : group === 'macro' ? data.groups.macro : [...data.groups.tech, ...data.groups.macro]) : []
 
   return (
     <div>
       <p className="mb-6 max-w-prose text-small text-muted">
-        Each column is a whole number and the score is their sum. Price, seasonality, positioning and the retail crowd are scored per pair.
-        Each economic release is scored for each currency against its forecast (surveys against the month before), then base minus quote.
+        Each column is a whole number and the score is their sum. Price, seasonality, positioning and the retail crowd are scored per instrument.
+        Each economic release is scored for each currency against its forecast (surveys against the month before), then base minus quote. Indices,
+        stocks and coins take their home economy&apos;s releases, with inflation and rates counted the other way round.
       </p>
       <div className="mb-6 flex flex-wrap items-end gap-3">
+        <SelectField
+          label="Market"
+          value={market}
+          onChange={(e) => setMarket(e.target.value)}
+          options={[{ value: '', label: 'All markets' }, ...MARKET_OPTIONS]}
+        />
         <SelectField
           label="Bias"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           options={[{ value: '', label: 'All labels' }, ...LABEL_ORDER.map((l) => ({ value: l, label: LABEL_TEXT[l] }))]}
         />
-        <SelectField
-          label="Currency"
-          value={currency}
-          onChange={(e) => setCurrency(e.target.value)}
-          options={[{ value: '', label: 'All' }, ...CURRENCIES.map((c) => ({ value: c, label: c === 'XAU' ? 'Gold' : c }))]}
-        />
+        {hasCurrencies(market) && (
+          <SelectField
+            label="Currency"
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            options={[{ value: '', label: 'All' }, ...CURRENCIES.map((c) => ({ value: c, label: c === 'XAU' ? 'Gold' : c }))]}
+          />
+        )}
         <Segmented<Group>
           label="Columns"
           value={group}
@@ -79,7 +102,7 @@ export default function ScoreboardPage() {
         <BottomSheet
           open
           onOpenChange={(o) => !o && setOpen(null)}
-          title={`${data.columns[open.column].name} · ${instrumentName(open.row.symbol)}`}
+          title={`${data.columns[open.column].name} · ${instrumentName(open.row.symbol, open.row.name)}`}
           description={data.columns[open.column].about}
         >
           <CellDetails row={open.row} column={open.column} cell={open.row.columns[open.column]} data={data} />
@@ -93,7 +116,7 @@ export default function ScoreboardPage() {
             {data.calendar_link.label}
             <ExternalLink className="size-3" strokeWidth={2} aria-hidden="true" />
           </a>
-          ; actual figures from official sources where we fetch them. The final bias on the Pairs tab blends this board's economic columns with the
+          ; actual figures from official sources where we fetch them. The final bias on the Markets tab blends this board's economic columns with the
           regime score.
         </p>
       )}
@@ -117,17 +140,17 @@ function tone(cell: BoardCell | undefined): string {
 function cellLabel(data: Scoreboard, row: BoardRow, column: BoardColumn) {
   const cell = row.columns[column]
   const value = cell?.score === null || cell === undefined ? CELL_STATUS_TEXT[cell?.status ?? 'missing'] : formatInt(cell.score)
-  return `${data.columns[column].name}, ${instrumentName(row.symbol)}: ${value}`
+  return `${data.columns[column].name}, ${instrumentName(row.symbol, row.name)}: ${value}`
 }
 
 function BoardTable({ data, rows, columns, onCell }: { data: Scoreboard; rows: BoardRow[]; columns: BoardColumn[]; onCell: (r: BoardRow, c: BoardColumn) => void }) {
   return (
     <div className="hidden overflow-x-auto rounded-md border border-border md:block">
       <table className="w-full border-collapse text-small">
-        <caption className="sr-only">Scoreboard: every column for each pair and gold, most bullish first</caption>
+        <caption className="sr-only">Scoreboard: every column for each instrument, most bullish first</caption>
         <thead>
           <tr className="border-b border-border text-caption text-subtle">
-            <th scope="col" className="sticky left-0 z-10 bg-bg px-3 py-2 text-left font-semibold">Pair</th>
+            <th scope="col" className="sticky left-0 z-10 bg-bg px-3 py-2 text-left font-semibold">Instrument</th>
             <th scope="col" className="px-2 py-2 text-right font-semibold">Score</th>
             <th scope="col" className="px-2 py-2 text-left font-semibold">Bias</th>
             <th scope="col" className="px-2 py-2 text-right font-semibold" title="Change in the score since the last daily run">Day</th>
@@ -143,7 +166,7 @@ function BoardTable({ data, rows, columns, onCell }: { data: Scoreboard; rows: B
             <tr key={r.symbol} className="border-b border-border last:border-0">
               <th scope="row" className="sticky left-0 z-10 bg-bg px-3 py-1.5 text-left">
                 <span className="font-mono text-caption text-subtle">{r.rank ?? '—'}</span>{' '}
-                <span className="font-mono font-semibold">{instrumentName(r.symbol)}</span>
+                <span className={`whitespace-nowrap font-semibold ${r.market === 'forex' ? 'font-mono' : ''}`}>{instrumentName(r.symbol, r.name)}</span>
               </th>
               <td className="px-2 py-1.5 text-right font-mono font-semibold">{formatInt(r.score)}</td>
               <td className="px-2 py-1.5">
@@ -183,7 +206,7 @@ function MobileRow({ row, data, columns, onCell }: { row: BoardRow; data: Scoreb
         className="grid w-full grid-cols-[2rem_1fr_auto_auto] items-center gap-x-3 px-3 py-3 text-left"
       >
         <span className="font-mono text-small text-subtle">{row.rank ?? '—'}</span>
-        <span className="font-mono text-body font-semibold">{instrumentName(row.symbol)}</span>
+        <span className={`min-w-0 truncate text-body font-semibold ${row.market === 'forex' ? 'font-mono' : ''}`}>{instrumentName(row.symbol, row.name)}</span>
         <span className="flex items-center gap-2">
           <span className="font-mono text-body font-semibold">{formatInt(row.score)}</span>
           <LabelChip label={row.label} />
@@ -224,10 +247,21 @@ function CellDetails({ row, column, cell, data }: { row: BoardRow; column: Board
         <span className={`inline-flex min-w-10 justify-center rounded-sm border px-2 py-1 font-mono text-body font-semibold ${tone(cell)}`}>{formatInt(cell.score)}</span>
       </div>
       {cell.score === null && <p className="text-small text-muted">{CELL_STATUS_TEXT[cell.status]}.</p>}
-      {macro && cell.sides ? (
+      {macro && cell.sides && row.home ? (
         <>
-          <Side code={row.base} side={cell.sides.base} />
-          <Side code={row.quote} side={cell.sides.quote} />
+          <Side code={row.home} side={cell.sides.home ?? null} />
+          <p className="text-caption text-subtle">
+            {cell.status === 'na'
+              ? `US-only data: not part of a ${row.home} market.`
+              : cell.sides.sign === -1
+                ? `Counted the other way round for ${instrumentName(row.symbol, row.name)}: hotter prices or higher rates point to a tighter central bank, which weighs on stocks and other risk assets.`
+                : `Counted as it is for ${instrumentName(row.symbol, row.name)}: stronger data supports stocks and other risk assets.`}
+          </p>
+        </>
+      ) : macro && cell.sides ? (
+        <>
+          <Side code={row.base ?? ''} side={cell.sides.base ?? null} />
+          <Side code={row.quote ?? ''} side={cell.sides.quote ?? null} />
           {row.base !== 'XAU' && <p className="text-caption text-subtle">The column is {row.base}'s score minus {row.quote}'s.</p>}
           {row.base === 'XAU' && <p className="text-caption text-subtle">Gold has no economy of its own: this column is the US side reversed.</p>}
         </>

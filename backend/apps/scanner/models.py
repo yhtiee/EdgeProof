@@ -26,9 +26,15 @@ class Currency(BaseModel):
 
 
 class Pair(BaseModel):
-    symbol = models.CharField(max_length=6, unique=True)  # "EURUSD"
-    base = models.ForeignKey(Currency, on_delete=models.CASCADE, related_name="+")
-    quote = models.ForeignKey(Currency, on_delete=models.CASCADE, related_name="+")
+    """
+    Anything the scanner ranks: an FX pair ("EURUSD"), gold, or an index, stock or coin
+    ("SPX500", "AAPL", "BTCUSD"). Indices, stocks and coins have no base or quote currency;
+    their name, market and home economy live in reference.INSTRUMENTS.
+    """
+
+    symbol = models.CharField(max_length=10, unique=True)
+    base = models.ForeignKey(Currency, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    quote = models.ForeignKey(Currency, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
 
     class Meta(BaseModel.Meta):
         ordering = ["symbol"]
@@ -147,8 +153,11 @@ class Publication(BaseModel):
     url = models.URLField(max_length=500, unique=True)
     published_at = models.DateTimeField(db_index=True)
     summary = models.TextField(blank=True)  # plain text, trimmed
-    topics = models.JSONField(default=list)  # factor names from reference.NEWS_TOPICS
-    source = models.CharField(max_length=60)  # central bank name
+    topics = models.JSONField(default=list)  # factor names from reference.NEWS_TOPICS (may be empty for News headlines)
+    source = models.CharField(max_length=60)  # central bank or statistics agency name
+    # News headlines (docs/news.md): decision, minutes, speech, report, data or press; and who published it.
+    kind = models.CharField(max_length=12, blank=True, default="", db_default="")
+    publisher = models.CharField(max_length=12, default="bank", db_default="bank")  # bank | statistics
 
     class Meta(BaseModel.Meta):
         ordering = ["-published_at"]
@@ -163,7 +172,7 @@ class Explanation(BaseModel):
 
     key = models.CharField(max_length=64, unique=True)  # sha256 of run + subject + factor
     run = models.ForeignKey(ScoringRun, on_delete=models.CASCADE, related_name="explanations")
-    subject = models.CharField(max_length=6)
+    subject = models.CharField(max_length=10)
     factor = models.CharField(max_length=16, blank=True)
     answer = models.TextField()
     provider = models.CharField(max_length=16)
@@ -181,10 +190,15 @@ class CalendarEvent(BaseModel):
     currency = models.ForeignKey(Currency, on_delete=models.CASCADE, related_name="events")
     title = models.CharField(max_length=200)
     at = models.DateTimeField(db_index=True)
-    impact = models.CharField(max_length=10)  # High or Medium
+    impact = models.CharField(max_length=10)  # High, Medium, Low or Holiday (the scanner shows High and Medium)
     forecast = models.CharField(max_length=40, blank=True)
     previous = models.CharField(max_length=40, blank=True)
     factor = models.CharField(max_length=16, blank=True)  # the scanner factor it feeds, if any
+    # News calendar (docs/news.md): the feed has no actuals. An official first print where the scoreboard
+    # fetches one, else the "previous" the next release of the same series lists; text as the calendar prints it.
+    actual = models.CharField(max_length=40, blank=True, default="", db_default="")
+    actual_source = models.CharField(max_length=80, blank=True, default="", db_default="")
+    indicator = models.CharField(max_length=16, blank=True, default="", db_default="")  # the scoreboard column it feeds, if any
 
     class Meta(BaseModel.Meta):
         ordering = ["at"]

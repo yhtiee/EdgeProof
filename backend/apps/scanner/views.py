@@ -48,13 +48,18 @@ from .reference import (
     CALENDAR_LINK,
     CURRENCIES,
     DISCLAIMER,
+    EQUITY_FACTORS,
+    EQUITY_SIGN,
     FACTOR_LESSON,
     FACTOR_TEXT,
     FACTORS_CURRENCY,
     FACTORS_PAIR,
     LABEL_TEXT,
+    MARKETS,
     MERGE,
     ORDER,
+    instrument,
+    is_equity,
 )
 from .sources.providers import JOBS
 
@@ -67,7 +72,7 @@ def latest_run() -> ScoringRun:
 
 
 # Bump when a response's shape or wording changes, so cached copies built by older code are ignored.
-CACHE_VERSION = 3
+CACHE_VERSION = 4
 
 
 def cached(request, run: ScoringRun, build):
@@ -93,8 +98,25 @@ def _label(label: str) -> dict:
     return {"label": label, "label_text": LABEL_TEXT.get(label, label)}
 
 
+def _identity(pair: Pair) -> dict:
+    """What every row says about its instrument: symbol, name, market, currencies (FX and gold) or home economy, and any ETF proxy."""
+    info = instrument(pair.symbol)
+    return {"symbol": pair.symbol, "name": info["name"], "market": info["market"], "home": info["home"], "proxy": info["proxy"],
+            "base": pair.base.code if pair.base_id else None, "quote": pair.quote.code if pair.quote_id else None}
+
+
+def _stale_for(ident: dict, stale: list[str]) -> list[str]:
+    """Stale factors behind one row: its own, its currencies' (FX and gold) or its home economy's (indices, stocks, coins)."""
+    out = set()
+    for entry in stale:
+        subject, factor = entry.split(":")
+        if subject == ident["symbol"] or subject in (ident["base"], ident["quote"]) or (subject == ident["home"] and factor in EQUITY_FACTORS):
+            out.add(factor)
+    return sorted(out)
+
+
 class PairsView(APIView):
-    """GET /scanner/pairs?label=&currency=&strong=1: ranked pairs from the latest run."""
+    """GET /scanner/pairs?market=&label=&currency=&strong=1: every instrument from the latest run, ranked."""
 
     def get(self, request):
         run = latest_run()
@@ -104,11 +126,11 @@ class PairsView(APIView):
             stale = (run.notes or {}).get("stale", [])
             out = []
             for p in rows:
-                sym = p.pair.symbol
+                ident = _identity(p.pair)
                 out.append({
-                    "symbol": sym, "base": p.pair.base.code, "quote": p.pair.quote.code, "score": p.score, **_label(p.label),
+                    **ident, "score": p.score, **_label(p.label),
                     "rank": p.rank, "change_wow": p.change_wow, "agreement": (p.detail or {}).get("agreement"),
-                    "stale_factors": [s.split(":")[1] for s in stale if s.split(":")[0] in (sym, p.pair.base.code, p.pair.quote.code)],
+                    "stale_factors": _stale_for(ident, stale),
                     # Final bias: regime (`score`) blended with momentum (docs/scanner/scoreboard.md).
                     # A run from before the scoreboard has no final bias: fall back to the regime score.
                     "final_score": p.final_score if p.final_label else p.score,
@@ -116,11 +138,14 @@ class PairsView(APIView):
                     "momentum": p.momentum, "mixed": p.mixed, "board_score": p.board_score,
                 })
             out.sort(key=lambda r: (r["final_score"] is None, -(r["final_score"] or 0), r["symbol"]))
-            return {**run_meta(run), "pairs": out}
+            return {**run_meta(run), "pairs": out, "markets": MARKETS}
 
         response = cached(request, run, build)
         label, currency, strong = request.query_params.get("label"), request.query_params.get("currency", "").upper(), request.query_params.get("strong")
+        market = request.query_params.get("market")
         pairs = response.data["pairs"]
+        if market:
+            pairs = [p for p in pairs if p["market"] == market]
         if label:
             pairs = [p for p in pairs if p["label"] == label]
         if currency:
@@ -198,6 +223,8 @@ class PairDetailView(APIView):
         def build():
             ps = PairScore.objects.get(run=run, pair=pair)
             sources = _sources()
+            if is_equity(pair.symbol):
+                return _instrument_detail(run, pair, ps, sources)
             base, quote = _currency_block(run, pair.base.code, sources), _currency_block(run, pair.quote.code, sources)
             pf = {f.factor: {"score": f.score, "raw": f.raw_value, "stale": f.is_stale, "detail": f.detail,
                              "source": SOURCE_LABEL.get(sources.get((f.factor, pair.symbol), ""), "")}
@@ -219,7 +246,8 @@ class PairDetailView(APIView):
             for f in ("trend", "retail"):
                 contributions[f] = (detail.get("contributions") or {}).get(f)
             return {
-                **run_meta(run), "symbol": pair.symbol, "score": ps.score, **_label(ps.label), "rank": ps.rank, "change_wow": ps.change_wow,
+                **run_meta(run), **_identity(pair), "score": ps.score, **_label(ps.label), "rank": ps.rank, "rank_of": _ranked(run),
+                "change_wow": ps.change_wow,
                 "agreement": detail.get("agreement"), "components": detail.get("components"), "base": base, "quote": quote,
                 "pair_factors": pf, "contributions": contributions, "factor_text": _factor_text(),
                 "summary": _summary(pair.symbol, ps, base, quote, pf.get("trend", {}), pf.get("retail", {}), contributions),
@@ -228,8 +256,52 @@ class PairDetailView(APIView):
         return cached(request, run, build)
 
 
+def _ranked(run: ScoringRun) -> int:
+    return PairScore.objects.filter(run=run, rank__isnull=False).count()
+
+
+ECONOMY_NAME = {"USD": "US", "EUR": "euro area", "GBP": "UK", "JPY": "Japanese", "AUD": "Australian", "NZD": "New Zealand",
+                "CAD": "Canadian", "CHF": "Swiss"}
+
+
+def _instrument_summary(name: str, ps: PairScore, home: str, economy: float | None, contributions: dict, retail: dict) -> str:
+    if ps.score is None:
+        return f"{name} has no score this week: its home economy has too little fresh data."
+    names = {f: FACTOR_TEXT[f][0].split(" (")[0].lower() for f in FACTOR_TEXT} | {"cot": "futures positioning"}
+    drivers = sorted(((v, k) for k, v in contributions.items() if v), key=lambda t: -abs(t[0]))[:2]
+    parts = [f"{name} is {LABEL_TEXT[ps.label]} at {_signed(ps.score)}."]
+    if economy is not None:
+        parts.append(f"Read the stock-market way, the {ECONOMY_NAME.get(home, home)} economy scores {_signed(economy)}.")
+    if drivers:
+        parts.append("The biggest contributions come from " + " and ".join(f"{names.get(k, k)} ({_signed(v)})" for v, k in drivers) + ".")
+    if retail.get("raw") is not None:
+        parts.append(f"{retail['raw']:.0f}% of retail traders are long, read contrarian.")
+    return " ".join(parts)
+
+
+def _instrument_detail(run: ScoringRun, pair: Pair, ps: PairScore, sources: dict) -> dict:
+    """The scorecard for an index, stock or coin: its home economy read the stock-market way, then its own positioning, trend and crowd."""
+    ident = _identity(pair)
+    home = _currency_block(run, ident["home"], sources)
+    home["factors"] = {f: v for f, v in home["factors"].items() if f in EQUITY_SIGN}  # the currency's own COT isn't used
+    for f, v in home["factors"].items():  # the score each economy factor gives a stock market (inflation and rates flip)
+        v["equity_score"] = None if v["score"] is None else EQUITY_SIGN[f] * v["score"]
+    pf = {f.factor: {"score": f.score, "raw": f.raw_value, "stale": f.is_stale, "detail": f.detail,
+                     "source": SOURCE_LABEL.get(sources.get((f.factor, pair.symbol), ""), "")}
+          for f in FactorScore.objects.filter(run=run, pair=pair)}
+    detail = ps.detail or {}
+    contributions = {k: (round(v, 2) if v is not None else None) for k, v in (detail.get("contributions") or {}).items()}
+    return {
+        **run_meta(run), **ident, "score": ps.score, **_label(ps.label), "rank": ps.rank, "rank_of": _ranked(run), "change_wow": ps.change_wow,
+        "agreement": detail.get("agreement"), "components": detail.get("components"), "economy": detail.get("economy"),
+        "home_block": home, "economy_name": ECONOMY_NAME.get(ident["home"], ident["home"]), "has_cot": bool(instrument(pair.symbol)["cot"]),
+        "pair_factors": pf, "contributions": contributions, "factor_text": _factor_text(),
+        "summary": _instrument_summary(ident["name"], ps, ident["home"], detail.get("economy"), contributions, pf.get("retail", {})),
+    }
+
+
 class ScoreboardView(APIView):
-    """GET /scanner/scoreboard: the 18-column board for every pair and gold, most bullish first (docs/scanner/scoreboard.md)."""
+    """GET /scanner/scoreboard: the 18-column board for every instrument, most bullish first (docs/scanner/scoreboard.md)."""
 
     def get(self, request):
         run = latest_run()
@@ -238,8 +310,7 @@ class ScoreboardView(APIView):
             rows = []
             for p in PairScore.objects.filter(run=run).select_related("pair__base", "pair__quote"):
                 rows.append({
-                    "symbol": p.pair.symbol, "base": p.pair.base.code, "quote": p.pair.quote.code,
-                    "score": p.board_score, **_label(p.board_label or "insufficient"),
+                    **_identity(p.pair), "score": p.board_score, **_label(p.board_label or "insufficient"),
                     "rank": p.board_rank, "change_1d": p.change_1d, "columns": (p.detail or {}).get("board", {}),
                     "final_score": p.final_score, "final_label": p.final_label or "insufficient", "regime": p.score,
                     "momentum": p.momentum, "mixed": p.mixed,
@@ -249,7 +320,7 @@ class ScoreboardView(APIView):
                 rows = []  # a run from before the scoreboard: the page says it appears after the next run
             return {**run_meta(run), "rows": rows, "groups": {"tech": BOARD_TECH, "macro": BOARD_MACRO},
                     "columns": {c: {"short": t[0], "name": t[1], "about": t[2]} for c, t in BOARD_TEXT.items()},
-                    "merge": MERGE, "calendar_link": {"label": CALENDAR_LINK[0], "url": CALENDAR_LINK[1]}}
+                    "merge": MERGE, "markets": MARKETS, "calendar_link": {"label": CALENDAR_LINK[0], "url": CALENDAR_LINK[1]}}
 
         return cached(request, run, build)
 
@@ -338,11 +409,9 @@ def scheduled_job(request, name):
 
 def _subject(subject: str) -> str:
     s = subject.upper()
-    if len(s) == 3 and s in {c for c, *_ in CURRENCIES}:
+    if s in {c for c, *_ in CURRENCIES} or Pair.objects.filter(symbol=s).exists():
         return s
-    if len(s) == 6 and Pair.objects.filter(symbol=s).exists():
-        return s
-    raise NotFound("Unknown pair or currency.")
+    raise NotFound("Unknown instrument or currency.")
 
 
 class FactorEvidenceView(APIView):
@@ -385,7 +454,7 @@ class ExplainView(APIView):
     renderer_classes = [JSONRenderer, EventStreamRenderer]
 
     class Body(serializers.Serializer):
-        subject = serializers.RegexField(r"^[A-Za-z]{3}(?:[A-Za-z]{3})?$")
+        subject = serializers.RegexField(r"^[A-Za-z0-9]{2,10}$")
         factor = serializers.ChoiceField(choices=[*FACTORS_CURRENCY, *FACTORS_PAIR], required=False, allow_blank=True)
 
     def post(self, request):
@@ -415,11 +484,11 @@ class ExplainView(APIView):
 
 
 class CalendarView(APIView):
-    """GET /scanner/calendar/{subject}: upcoming releases for a currency or both sides of a pair (Forex Factory), next 10 days."""
+    """GET /scanner/calendar/{subject}: upcoming releases for a currency, both sides of a pair or an instrument's home economy (Forex Factory), next 10 days."""
 
     def get(self, request, subject):
         subject = _subject(subject)
-        codes = [subject] if len(subject) == 3 else [subject[:3], subject[3:]]
+        codes = evidence.subject_currencies(subject)
         source = DataSource.objects.filter(name="calendar").first()
         return Response({"events": evidence.calendar(codes, back_days=0, ahead_days=10),
                          "fetched_at": source.last_success_at.isoformat() if source and source.last_success_at else None,
